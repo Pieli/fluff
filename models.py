@@ -42,6 +42,7 @@ class LitCNN(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
         loss = self.criterion(y_hat, y)
+        self.log("loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
