@@ -1,2 +1,2 @@
-# FLoops - tiny federated learning framework
+# Fluff - tiny federated learning framework
 

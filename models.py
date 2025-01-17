@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader
-import lightning as L
 
 
 class CNN(nn.Module):
@@ -44,6 +43,18 @@ class LitCNN(pl.LightningModule):
         y_hat = self(x)
         loss = self.criterion(y_hat, y)
         return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        val_loss = self.criterion(y_hat, y)
+        self.log("val_loss", val_loss)
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        test_loss = self.criterion(y_hat, y)
+        self.log("test_loss", test_loss)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=0.001)
