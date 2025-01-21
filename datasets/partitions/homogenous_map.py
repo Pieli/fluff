@@ -1,10 +1,17 @@
-from partitions import partitions
+import logging
+import numpy as np
+from torch.utils import data
+
+from datasets.partitions import partitions
 
 
 class HomogenousMap(partitions.Partition):
+    def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
+        super().__init__(partition_id, partitions_number, partition_parameter)
 
-    def generate(self, dataset, **kwargs):
-        # def homo_partition(self, dataset):
+    def generate(self, dataset: data.Dataset, **kwargs):
+        assert self.seed, "Seed must be provided"
+        assert self.num_classes, "Number of classes must be provided"
         """
         Homogeneously partition the dataset into multiple subsets.
 
@@ -30,7 +37,7 @@ class HomogenousMap(partitions.Partition):
             federated_data = homo_partition(my_dataset)
             # This creates federated data subsets with homogeneous distribution.
         """
-        n_nets = self.partitions_number
+        n_nets = self._number
 
         n_train = len(dataset.targets)
         np.random.seed(self.seed)
@@ -39,7 +46,7 @@ class HomogenousMap(partitions.Partition):
         net_dataidx_map = {i: batch_idxs[i] for i in range(n_nets)}
 
         # partitioned_datasets = []
-        for i in range(self.partitions_number):
+        for i in range(self._number):
             # subset = torch.utils.data.Subset(dataset, net_dataidx_map[i])
             # partitioned_datasets.append(subset)
 

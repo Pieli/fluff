@@ -1,20 +1,12 @@
-from partitions import Partition
 import logging
-from torchvision.datasets import CIFAR10
-from torchvision import transforms
 from torch.utils.data import Dataset
-from sklearn.manifold import TSNE
-import seaborn as sns
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
-from collections import defaultdict
-import time
 import random
 import torch
 import os
 from abc import ABC, abstractmethod
-from torch.utils import data
+
+from datasets.partitions.partitions import Partition
 
 
 def enable_deterministic():
@@ -28,12 +20,6 @@ def enable_deterministic():
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-
-# TODO what is this?
-matplotlib.use("Agg")
-# TODO what is this?
-plt.switch_backend("Agg")
 
 
 class NebulaDataset(Dataset, ABC):
@@ -70,19 +56,7 @@ class NebulaDataset(Dataset, ABC):
         self.class_distribution = None
 
         enable_deterministic()
-
-        if partition.get_id() == 0:
-            self.initialize_dataset()
-        else:
-            max_tries = 10
-            for i in range(max_tries):
-                try:
-                    self.initialize_dataset()
-                    break
-                except Exception as e:
-                    logging.info(
-                        f"Error loading dataset: {e}. Retrying {i + 1}/{max_tries} in 5 seconds...")
-                    time.sleep(5)
+        self.initialize_dataset()
 
     @abstractmethod
     def initialize_dataset(self):
@@ -92,7 +66,6 @@ class NebulaDataset(Dataset, ABC):
         pass
 
     # TODO implement this (not abstract)
-    @abstractmethod
     def plot(self):
         """
         Plot the partitions of the dataset.

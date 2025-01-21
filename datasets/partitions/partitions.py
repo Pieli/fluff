@@ -1,15 +1,26 @@
+import logging
 import numpy as np
 from abc import ABC, abstractmethod
+import seaborn as sns
+from sklearn.manifold import TSNE
+import matplotlib
+import matplotlib.pyplot as plt
+from collections import defaultdict
+
+from torch.utils import data
+
+matplotlib.use("Agg")
+plt.switch_backend("Agg")
 
 
 class Partition(ABC):
-    def __init__(self, _id):
-        self._id = _id
+    def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float):
+        self._id = partition_id
+        self._number = partitions_number
+        self._parameter = partition_parameter
+        self.seed = 42
 
-        self.partition_id = partition_id
-        self.partitions_number = partitions_number
-        self.partition = partition
-        self.partition_parameter = partition_parameter
+        self.class_distribution = None
 
         if partition_id < 0 or partition_id >= partitions_number:
             raise ValueError(
@@ -18,11 +29,17 @@ class Partition(ABC):
     def get_id(self):
         return self._id
 
+    def set_seed(self, seed: int):
+        self.seed = seed
+
+    def set_num_classes(self, num: int):
+        self.num_classes = num
+
     @abstractmethod
-    def generate(self, dataset, **kwargs):
+    def generate(self, dataset: data.Dataset, **kwargs):
         pass
 
-    def plot_data_distribution(self, dataset, partitions_map):
+    def plot_data_distribution(self, dataset: data.Dataset, partitions_map):
         """
         Plot the data distribution of the dataset.
 
@@ -38,7 +55,7 @@ class Partition(ABC):
         sns.set_context("paper", font_scale=1.5)
         sns.set_palette("Set2")
 
-        for i in range(self.partitions_number):
+        for i in range(self._number):
             indices = partitions_map[i]
             class_counts = [0] * self.num_classes
             for idx in indices:
@@ -55,7 +72,7 @@ class Partition(ABC):
                 plt.title(f"Participant {i + 1} class distribution (IID)")
             else:
                 plt.title(
-                    f"Participant {i + 1} class distribution (Non-IID - {self.partition}) - {self.partition_parameter}"
+                    f"Participant {i + 1} class distribution (Non-IID - {self.partition}) - {self._parameter}"
                 )
             plt.tight_layout()
             path_to_save = f"./participant_{i}_class_distribution_{'iid' if self.iid else 'non_iid'}{'_' + self.partition if not self.iid else ''}.png"
@@ -66,7 +83,7 @@ class Partition(ABC):
         max_point_size = 500
         min_point_size = 0
 
-        for i in range(self.partitions_number):
+        for i in range(self._number):
             class_counts = [0] * self.num_classes
             indices = partitions_map[i]
             for idx in indices:
@@ -85,13 +102,13 @@ class Partition(ABC):
 
         plt.xlabel("Participant")
         plt.ylabel("Class")
-        plt.xticks(range(self.partitions_number))
+        plt.xticks(range(self._number))
         plt.yticks(range(self.num_classes))
         if self.iid:
             plt.title(f"Participant {i + 1} class distribution (IID)")
         else:
             plt.title(
-                f"Participant {i + 1} class distribution (Non-IID - {self.partition}) - {self.partition_parameter}"
+                f"Participant {i + 1} class distribution (Non-IID - {self.partition}) - {self._parameter}"
             )
         plt.tight_layout()
 
@@ -134,19 +151,19 @@ class Partition(ABC):
         plt.legend(title="Class")
         plt.tight_layout()
 
-        path_to_save_tsne = f"./tsne_visualization.png"
+        path_to_save_tsne = "./tsne_visualization.png"
         plt.savefig(path_to_save_tsne, dpi=300, bbox_inches="tight")
         plt.close()
 
     def _adjust_proportions(self, proportions, indices_per_partition, num_samples):
         adjusted = np.array([
-            p * (len(indices) < num_samples / self.partitions_number)
+            p * (len(indices) < num_samples / self._number)
             for p, indices in zip(proportions, indices_per_partition, strict=False)
         ])
         return adjusted / adjusted.sum()
 
     def _calculate_class_distribution(self, indices_per_partition, y_data):
-        distribution = defaultdict(lambda: np.zeros(self.partitions_number))
+        distribution = defaultdict(lambda: np.zeros(self._number))
         for partition_idx, indices in enumerate(indices_per_partition):
             labels, counts = np.unique(y_data[indices], return_counts=True)
             for label, count in zip(labels, counts, strict=False):

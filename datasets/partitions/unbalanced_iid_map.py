@@ -1,7 +1,11 @@
-from partitions import partitions
+import numpy as np
+
+from datasets.partitions import partitions
 
 
 class UnbalancedIIDMap(partitions.Partition):
+    def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
+        super().__init__(partition_id, partitions_number, partition_parameter)
 
     def generate(self, dataset, **kwargs):
         # def unbalanced_iid_partition(self, dataset, imbalance_factor=2):
@@ -35,7 +39,10 @@ class UnbalancedIIDMap(partitions.Partition):
             # This creates federated data subsets with varying number of samples based on
             # an imbalance factor of 2.
         """
-        num_clients = self.partitions_number
+
+        imbalance_factor = kwargs.get("impbnalance_factor", 2)
+
+        num_clients = self._number
         clients_data = {i: [] for i in range(num_clients)}
 
         # Get the labels from the dataset

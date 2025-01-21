@@ -1,10 +1,13 @@
-from partitions import partitions
+import numpy as np
+
+from datasets.partitions import partitions
 
 
 class BalancedIIDMap(partitions.Partition):
+    def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
+        super().__init__(partition_id, partitions_number, partition_parameter)
 
     def generate(self, dataset, **kwargs):
-        # def balanced_iid_partition(self, dataset):
         """
         Partition the dataset into balanced and IID (Independent and Identically Distributed)
         subsets for each client.
@@ -30,13 +33,14 @@ class BalancedIIDMap(partitions.Partition):
             federated_data = balanced_iid_partition(my_dataset)
             # This creates federated data subsets with equal class distributions.
         """
-        num_clients = self.partitions_number
+        num_clients = self._number
         clients_data = {i: [] for i in range(num_clients)}
 
         # Get the labels from the dataset
         if isinstance(dataset.targets, np.ndarray):
             labels = dataset.targets
-        elif hasattr(dataset.targets, "numpy"):  # Check if it's a tensor with .numpy() method
+        elif hasattr(dataset.targets, "numpy"):
+            # Check if it's a tensor with .numpy() method
             labels = dataset.targets.numpy()
         else:  # If it's a list
             labels = np.asarray(dataset.targets)

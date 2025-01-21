@@ -1,10 +1,14 @@
-from partitions import partitions
+import logging
+import numpy as np
+
+from datasets.partitions import partitions
 
 
 class PercentageMap(partitions.Partition):
+    def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
+        super().__init__(partition_id, partitions_number, partition_parameter)
 
     def generate(self, dataset, **kwargs):
-        # def percentage_partition(self, dataset, percentage=20):
         """
         Partition a dataset into multiple subsets with a specified level of non-IID-ness.
 
@@ -36,6 +40,8 @@ class PercentageMap(partitions.Partition):
             # This creates federated data subsets with varying class distributions based on
             # a percentage of 20.
         """
+        percentage = kwargs.get("percentage", 20)
+
         if isinstance(dataset.targets, np.ndarray):
             y_train = dataset.targets
         elif hasattr(dataset.targets, "numpy"):  # Check if it's a tensor with .numpy() method
@@ -44,7 +50,7 @@ class PercentageMap(partitions.Partition):
             y_train = np.asarray(dataset.targets)
 
         num_classes = self.num_classes
-        num_subsets = self.partitions_number
+        num_subsets = self._number
         class_indices = {i: np.where(y_train == i)[
             0] for i in range(num_classes)}
 
