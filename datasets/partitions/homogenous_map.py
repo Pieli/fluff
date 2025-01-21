@@ -9,6 +9,12 @@ class HomogenousMap(partitions.Partition):
     def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
         super().__init__(partition_id, partitions_number, partition_parameter)
 
+    def get_name(self) -> str:
+        return "homogeneous"
+
+    def is_iid(self) -> bool:
+        return True
+
     def generate(self, dataset: data.Dataset, **kwargs):
         assert self.seed, "Seed must be provided"
         assert self.num_classes, "Number of classes must be provided"

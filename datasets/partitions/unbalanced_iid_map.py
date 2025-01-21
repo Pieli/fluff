@@ -7,6 +7,12 @@ class UnbalancedIIDMap(partitions.Partition):
     def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
         super().__init__(partition_id, partitions_number, partition_parameter)
 
+    def get_name(self) -> str:
+        return "unbalanced iid"
+
+    def is_iid(self) -> bool:
+        return True
+
     def generate(self, dataset, **kwargs):
         # def unbalanced_iid_partition(self, dataset, imbalance_factor=2):
         """

@@ -7,6 +7,12 @@ class BalancedIIDMap(partitions.Partition):
     def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
         super().__init__(partition_id, partitions_number, partition_parameter)
 
+    def get_name(self) -> str:
+        return "balanced iid"
+
+    def is_iid(self) -> bool:
+        return True
+
     def generate(self, dataset, **kwargs):
         """
         Partition the dataset into balanced and IID (Independent and Identically Distributed)

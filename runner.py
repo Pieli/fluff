@@ -1,13 +1,10 @@
-from argparse import Namespace
-
-
-from models import LitCNN
-
 import torch
 from torch.utils import data
-
 import lightning as pl
+from argparse import Namespace
 
+from utils import timer
+from models import LitCNN
 import aggregator
 from datasets.dataset import NebulaDataset
 from datasets.cifar10Improved import CIFAR10Dataset
@@ -26,7 +23,7 @@ class Node:
         self._num_workers = num_workers
 
     def setup(self):
-        training_dataset = self._dataset.train_set
+        training_dataset = data.Subset(self._dataset.train_set, self._dataset.train_indices_map)
         test_dataset = self._dataset.test_set
 
         train_set_size = int(len(training_dataset) * 0.8)
@@ -67,6 +64,7 @@ class Node:
         return self._name
 
 
+@timer
 def run(args: Namespace):
     pl.seed_everything(42, workers=True)
 

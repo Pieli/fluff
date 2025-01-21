@@ -36,6 +36,14 @@ class Partition(ABC):
         self.num_classes = num
 
     @abstractmethod
+    def get_name(self) -> str:
+        pass
+
+    @abstractmethod
+    def is_iid(self) -> bool:
+        pass
+
+    @abstractmethod
     def generate(self, dataset: data.Dataset, **kwargs):
         pass
 
@@ -68,14 +76,11 @@ class Partition(ABC):
             plt.xlabel("Class")
             plt.ylabel("Number of samples")
             plt.xticks(range(self.num_classes))
-            if self.iid:
-                plt.title(f"Participant {i + 1} class distribution (IID)")
-            else:
-                plt.title(
-                    f"Participant {i + 1} class distribution (Non-IID - {self.partition}) - {self._parameter}"
-                )
+            plt.title(
+                f"Participant {i + 1} class distribution ({self.get_name()} - {self._parameter})"
+            )
             plt.tight_layout()
-            path_to_save = f"./participant_{i}_class_distribution_{'iid' if self.iid else 'non_iid'}{'_' + self.partition if not self.iid else ''}.png"
+            path_to_save = f"./participant_{i}_class_distribution_{'iid' if self.is_iid() else 'non_iid'}{'_' + self.get_name()}.png"
             plt.savefig(path_to_save, dpi=300, bbox_inches="tight")
             plt.close()
 
@@ -104,16 +109,16 @@ class Partition(ABC):
         plt.ylabel("Class")
         plt.xticks(range(self._number))
         plt.yticks(range(self.num_classes))
-        if self.iid:
+        if self.is_iid():
             plt.title(f"Participant {i + 1} class distribution (IID)")
         else:
             plt.title(
-                f"Participant {i + 1} class distribution (Non-IID - {self.partition}) - {self._parameter}"
+                f"Participant {i + 1} class distribution (Non-IID - {self.get_name()}) - {self._parameter}"
             )
         plt.tight_layout()
 
         # Saves the distribution display with circles of different size
-        path_to_save = f"./class_distribution_{'iid' if self.iid else 'non_iid'}{'_' + self.partition if not self.iid else ''}.png"
+        path_to_save = f"./class_distribution_{'iid' if self.is_iid() else 'non_iid'}{'_' + self.get_name()}.png"
         plt.savefig(path_to_save, dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -221,6 +226,6 @@ class Partition(ABC):
         plt.legend(loc="upper right")
         plt.tight_layout()
 
-        path_to_save = f"./all_data_distribution_{'iid' if self.iid else 'non_iid'}{'_' + self.partition if not self.iid else ''}.png"
+        path_to_save = f"./all_data_distribution_{'iid' if self.is_iid() else 'non_iid'}{'_' + self.get_name()}.png"
         plt.savefig(path_to_save, dpi=300, bbox_inches="tight")
         plt.close()

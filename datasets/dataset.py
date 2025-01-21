@@ -51,6 +51,8 @@ class NebulaDataset(Dataset, ABC):
         self.test_set = None
         self.test_indices_map = None
 
+        self.partition_map = None
+
         # Classes of the participants to be sure that
         # the same classes are used in training and testing
         self.class_distribution = None
@@ -65,12 +67,16 @@ class NebulaDataset(Dataset, ABC):
         """
         pass
 
-    # TODO implement this (not abstract)
     def plot(self):
         """
         Plot the partitions of the dataset.
         """
-        pass
+
+        assert self.partition_map is not None
+        assert isinstance(self.partition, Partition)
+
+        self.partition.plot_data_distribution(self.train_set, self.partition_map)
+        self.partition.plot_all_data_distribution(self.train_set, self.partition_map)
 
     def get_train_labels(self):
         """

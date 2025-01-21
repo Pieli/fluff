@@ -37,7 +37,8 @@ class CIFAR10Dataset(NebulaDataset):
         # Depending on the partition class non-iid or iid partions are created.
         self.partition.set_seed(self.seed)
         self.partition.set_num_classes(self.num_classes)
-        self.train_indices_map = self.partition.generate(self.train_set)[self.partition.get_id()]
+        self.partition_map = self.partition.generate(self.train_set)
+        self.train_indices_map = self.partition_map[self.partition.get_id()]
         self.local_test_indices_map = self.partition.generate(self.test_set)[self.partition.get_id()]
 
         print(f"Len of train indices map: {len(self.train_indices_map)}")
