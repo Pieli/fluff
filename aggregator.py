@@ -1,8 +1,6 @@
-import torch
 import copy
-from utils import timer
 from abc import ABC, abstractmethod
-from typing import OrderedDict, Iterable, List, Any, Dict
+from typing import List, Any, Dict
 import lightning as pl
 
 

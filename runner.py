@@ -1,41 +1,33 @@
 from argparse import Namespace
 
-from typing import Tuple, Iterable, List
 
 from models import LitCNN
 
 import torch
 from torch.utils import data
-from torchvision import datasets, transforms
-import matplotlib.pyplot as plt
 
 import lightning as pl
-from torch.utils.data import DataLoader
 
-from aggregator import Noop
+import aggregator
+from datasets.dataset import NebulaDataset
+from datasets.cifar10Improved import CIFAR10Dataset
+from datasets.partitions.dirichelet_map import DirichletMap
 
 
 class Node:
-    def __init__(self, name: str, model: pl.LightningModule) -> None:
+    def __init__(self, name: str,
+                 model: pl.LightningModule,
+                 dataset: NebulaDataset,
+                 num_workers: int = 2) -> None:
+
         self._name = name
-        self.model = model
+        self._model = model
+        self._dataset = dataset
+        self._num_workers = num_workers
 
     def setup(self):
-        transform = transforms.ToTensor()
-
-        training_dataset = datasets.CIFAR10(
-            root="data",
-            train=True,
-            download=True,
-            transform=transform
-        )
-
-        test_dataset = datasets.CIFAR10(
-            root="data",
-            train=False,
-            download=True,
-            transform=transform
-        )
+        training_dataset = self._dataset.train_set
+        test_dataset = self._dataset.test_set
 
         train_set_size = int(len(training_dataset) * 0.8)
         valid_set_size = len(training_dataset) - train_set_size
@@ -47,27 +39,29 @@ class Node:
             training_dataset, [train_set_size, valid_set_size], generator=seed)
 
         self.train_loader = data.DataLoader(
-            train_set, batch_size=32, shuffle=True, num_workers=11)
+            train_set, batch_size=32, shuffle=True, num_workers=self._num_workers)
 
         self.val_loader = data.DataLoader(
-            valid_set, batch_size=32, shuffle=False, num_workers=11)
+            valid_set, batch_size=32, shuffle=False, num_workers=self._num_workers)
 
         self.test_loader = data.DataLoader(
-            training_dataset, batch_size=32, shuffle=False, num_workers=11)
+            test_dataset, batch_size=32, shuffle=False, num_workers=self._num_workers)
 
         return self
 
-    def train(self, epochs: int) -> None:
-        trainer = pl.Trainer(max_epochs=epochs, deterministic=True)
+    def train(self, epochs: int, dev_runs=False) -> None:
+        trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs, deterministic=True)
 
-        trainer.fit(model=self.model,
+        trainer.fit(model=self._model,
                     train_dataloaders=self.train_loader,
                     val_dataloaders=self.val_loader)
 
-        trainer.test(model=self.model, dataloaders=self.test_loader)
+    def test(self, epochs: int, dev_runs=False) -> None:
+        trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs, deterministic=True)
+        trainer.test(model=self._model, dataloaders=self.test_loader)
 
     def get_model(self) -> pl.LightningModule:
-        return self.model
+        return self._model
 
     def get_name(self) -> str:
         return self._name
@@ -76,11 +70,11 @@ class Node:
 def run(args: Namespace):
     pl.seed_everything(42, workers=True)
 
-    agg = Noop()
+    agg = aggregator.FedAvg()
 
     # setup
     nodes = [
-        Node(f"node-{num}", LitCNN()).setup()
+        Node(f"node-{num}", LitCNN(), CIFAR10Dataset(DirichletMap(partition_id=num, partitions_number=args.nodes))).setup()
         for num in range(args.nodes)
     ]
 
@@ -88,6 +82,8 @@ def run(args: Namespace):
     for round in range(args.rounds):
         for node in nodes:
             print(f"Training {node.get_name()}")
-            node.train(args.epochs)
+            node.train(args.epochs, args.dev_batches)
 
         agg.run([node.get_model() for node in nodes])
+
+    nodes[0].test(args.epochs, args.dev_batches)

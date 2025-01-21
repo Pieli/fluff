@@ -2,9 +2,6 @@ import torch
 import lightning as pl
 from torch import nn
 import torch.nn.functional as F
-from torchvision import transforms
-from torchvision.datasets import MNIST
-from torch.utils.data import DataLoader
 
 
 class CNN(nn.Module):
