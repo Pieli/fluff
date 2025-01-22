@@ -2,10 +2,10 @@ import logging
 import numpy as np
 from torch.utils import data
 
-from datasets.partitions import partitions
+from .partitions import Partition
 
 
-class DirichletMap(partitions.Partition):
+class DirichletMap(Partition):
     def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
         super().__init__(partition_id, partitions_number, partition_parameter)
 

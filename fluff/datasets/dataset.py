@@ -6,7 +6,7 @@ import torch
 import os
 from abc import ABC, abstractmethod
 
-from datasets.partitions.partitions import Partition
+from .partitions.partitions import Partition
 
 
 def enable_deterministic():

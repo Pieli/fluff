@@ -1,6 +1,6 @@
 import os
-from datasets.partitions.partitions import Partition
-from datasets.dataset import NebulaDataset
+from .partitions.partitions import Partition
+from .dataset import NebulaDataset
 
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
