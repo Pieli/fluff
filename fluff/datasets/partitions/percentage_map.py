@@ -1,10 +1,10 @@
 import logging
 import numpy as np
 
-from datasets.partitions import partitions
+from .partitions import Partition
 
 
-class PercentageMap(partitions.Partition):
+class PercentageMap(Partition):
     def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
         super().__init__(partition_id, partitions_number, partition_parameter)
 

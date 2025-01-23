@@ -1,6 +1,6 @@
 import numpy as np
 
-from datasets.partitions import partitions
+from .partitions import partitions
 
 
 class UnbalancedIIDMap(partitions.Partition):
