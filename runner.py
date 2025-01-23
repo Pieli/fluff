@@ -1,7 +1,8 @@
 import lightning as pl
 from argparse import Namespace
 
-import fluff
+from .. import fluff
+
 from fluff import aggregator
 
 from fluff.models import LitCNN
