@@ -15,7 +15,6 @@ parser.add_argument("-w", "--workers", type=int, default=4)
 parser.add_argument("--dev-batches", type=int, default=4)
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    runner.run(args)
+node = runner.run(args)

@@ -1,5 +1,5 @@
-import torch
 from torch import nn
+from torch.utils import data
 import lightning as pl
 from argparse import Namespace
 
@@ -14,22 +14,26 @@ from fluff.datasets.partitions.balanced_iid_map import BalancedIIDMap
 
 
 import utils
-from cifar100 import CIFAR100Dataset
-from models import LitCNN
-
-
-def logits_ensemble_eq_3(node_logits: torch.Tensor,
-                         node_statistics: torch.Tensor,
-                         num_classes: int,
-                         num_nodes: int,) -> torch.Tensor:
-
-    node_weights = utils.node_weights(node_statistics, num_classes, num_nodes)
-    return utils.logits_ensemble(node_logits, node_weights, num_classes, num_nodes)
+from datasets import CIFAR100Dataset
+from models import LitCNN, LitCNN_Cifar100, CNN
 
 
 @timer
 def run(args: Namespace):
     pl.seed_everything(42, workers=True)
+
+    node = Node("node-0",
+                LitCNN_Cifar100(CNN(num_classes=100), distillation=True),
+                CIFAR10Dataset(
+                    batch_size=200,
+                    partition=DirichletMap(
+                        partition_id=0,
+                        partitions_number=args.nodes
+                    ))).setup()
+    print(repr(node))
+    node.train(2, False)
+    return node
+    exit(0)
 
     # Training
     nodes = []
@@ -71,7 +75,7 @@ def run(args: Namespace):
 
         # set node to new model + dataset
         node_cifar100 = Node(f"node-{num}",
-                             model,
+                             LitCNN_Cifar100(model.cnn),
                              CIFAR100Dataset(
                                  batch_size=16,
                                  partition=BalancedIIDMap(

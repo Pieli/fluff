@@ -1,6 +1,25 @@
 import torch
 
 
+def importance_sampling() -> torch.Tensor:
+    pass
+
+
+def logits_ensemble_eq_3(raw_logits: list[torch.Tensor],
+                         raw_statistics: list[torch.Tensor],
+                         num_classes: int,
+                         num_nodes: int,) -> torch.Tensor:
+
+    assert isinstance(raw_logits, list)
+    assert isinstance(raw_statistics, list)
+    assert len(raw_logits) == len(raw_statistics)
+
+    node_logits = torch.stack(raw_logits)
+    node_statistics = torch.stack(raw_statistics)
+    weights = node_weights(node_statistics, num_classes, len(node_logits))
+    return logits_ensemble(node_logits, weights, num_classes, num_nodes)
+
+
 # fedad - node weights for equation 3
 def node_weights(node_stats: torch.Tensor, num_classes: int, num_nodes: int) -> torch.Tensor:
     """
