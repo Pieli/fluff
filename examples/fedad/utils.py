@@ -19,7 +19,8 @@ def node_weights(node_stats: torch.Tensor, num_classes: int, num_nodes: int) -> 
     assert node_stats.shape == (num_nodes, num_classes, 1)
 
     num_per_class = node_stats.sum(dim=0)
-    node_based_weight = node_stats / num_per_class
+    non_zero = torch.where(num_per_class == 0, torch.ones_like(num_per_class), num_per_class)
+    node_based_weight = node_stats / non_zero
     return node_based_weight
 
 
@@ -53,7 +54,6 @@ def logits_ensemble(logits: torch.Tensor,
     return (logits * node_weights).sum(dim=0)
 
 
-# TODO maybe seperate the summing and dividing (break up average into two functions)
 def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_classes: int) -> (torch.Tensor, torch.Tensor):
     r"""
     Computes the average logit for samples for the given label. (\hat{z}^c_k)
@@ -70,6 +70,7 @@ def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_cl
                       is the average logit across all samples for the corresponding class.
     """
     assert logits.dim() == 2, "must be 2D with shape (batch_size, num_classes)"
+    assert logits.shape[1] == num_classes, "must be 2D with shape (batch_size, num_classes)"
     assert targets.dim() == 1, "targets must be 1D tensor"
     assert targets.size(0) == logits.size(0), "targets have the same batch size as logits."
 

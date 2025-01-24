@@ -148,6 +148,36 @@ def test_union_loss_all_outliers_part_2():
     assert torch.isclose(result, torch.Tensor([-1]), atol=2e-1).item()
 
 
+def test_node_weights_zero_present():
+    nodes = 2
+    classes = 4
+
+    node_statistics = torch.tensor([[[1],
+                                     [2],
+                                     [0],
+                                     [0]],
+
+                                    [[4],
+                                     [2],
+                                     [0],
+                                     [0]]])
+
+    result = utils.node_weights(node_statistics, classes, nodes)
+
+    expected = torch.tensor([[[0.2000],
+                              [0.5000],
+                              [0.0000],
+                              [0.0000]],
+
+                             [[0.8000],
+                              [0.5000],
+                              [0.0000],
+                              [0.0000]]])
+
+    assert torch.isnan(result).sum() == 0
+    assert torch.allclose(result, expected)
+
+
 def test_node_weights_all_equal():
     nodes = 4
     classes = 10
