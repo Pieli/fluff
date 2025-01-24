@@ -103,3 +103,6 @@ class NebulaDataset(Dataset, ABC):
         if self.local_test_indices_map is None:
             return None
         return [self.test_set.targets[idx] for idx in self.local_test_indices_map]
+
+    def get_batch_size(self):
+        return self.batch_size

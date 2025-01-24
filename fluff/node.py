@@ -1,6 +1,9 @@
+
 import torch
 from torch.utils import data
 import lightning as pl
+
+from typing import Union
 
 from .datasets.dataset import NebulaDataset
 
@@ -29,18 +32,24 @@ class Node:
         train_set, valid_set = data.random_split(
             training_dataset, [train_set_size, valid_set_size], generator=seed)
 
-        self.train_loader = data.DataLoader(
-            train_set, batch_size=32, shuffle=True, num_workers=self._num_workers)
+        self.train_loader = data.DataLoader(train_set,
+                                            batch_size=self._dataset.get_batch_size(),
+                                            shuffle=True,
+                                            num_workers=self._num_workers)
 
-        self.val_loader = data.DataLoader(
-            valid_set, batch_size=32, shuffle=False, num_workers=self._num_workers)
+        self.val_loader = data.DataLoader(valid_set,
+                                          batch_size=self._dataset.get_batch_size(),
+                                          shuffle=False,
+                                          num_workers=self._num_workers)
 
-        self.test_loader = data.DataLoader(
-            test_dataset, batch_size=32, shuffle=False, num_workers=self._num_workers)
+        self.test_loader = data.DataLoader(test_dataset,
+                                           batch_size=self._dataset.get_batch_size(),
+                                           shuffle=False,
+                                           num_workers=self._num_workers)
 
         return self
 
-    def train(self, epochs: int, dev_runs=False) -> None:
+    def train(self, epochs: int, dev_runs: Union[bool | int] = False) -> None:
         trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs, deterministic=True)
 
         trainer.fit(model=self._model,
@@ -56,3 +65,16 @@ class Node:
 
     def get_name(self) -> str:
         return self._name
+
+    def __repr__(self) -> str:
+
+        model_lines = [13 * " " + line for line in repr(self._model).splitlines()]
+        model_lines[0] = model_lines[0].lstrip()
+
+        l4 = " " * 4
+        return "".join(("Node(\n",
+                        f"{l4}(name): {repr(self._name)}\n",
+                        f"{l4}(model): {"\n".join(model_lines)}\n",
+                        f"{l4}(dataset): {repr(self._dataset)}\n",
+                        f"{l4}(num_workers): {self._num_workers}\n)",
+                        ))
