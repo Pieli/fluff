@@ -2,19 +2,35 @@ import torch
 
 
 # fedad - node weights for equation 3
-def node_weights(node_stats: torch.Tensor) -> torch.Tensor:
-    # dim = 0 is the dimension of the nodes
-    # dim = 1 is the dimension of the classes
+def node_weights(node_stats: torch.Tensor, num_classes: int, num_nodes: int) -> torch.Tensor:
+    """
+    Computes the node weights for each class.
+
+    Args:
+        node_stats (torch.Tensor):
+            3D tensor of shape (num_nodes, num_classes, 1),
+            containting the number of samples for each class
+
+    Returns:
+        torch.Tensor:
+            3D tensor of shape (num_nodes, num_classes, 1),
+            containing the node weights for each class.
+    """
+    assert node_stats.shape == (num_nodes, num_classes, 1)
+
     num_per_class = node_stats.sum(dim=0)
     node_based_weight = node_stats / num_per_class
     return node_based_weight
 
 
 # fedad - equation 3
-def logits_ensemble(logits: torch.Tensor, node_weights: torch.Tensor):
-    assert logits.shape[1] == node_weights.shape[1]
+def logits_ensemble(logits: torch.Tensor,
+                    node_weights: torch.Tensor,
+                    num_classes: int,
+                    num_nodes: int,) -> torch.Tensor:
+    r"""
+    (\hat{z}^c) weighted average of nodes per class
 
-    """
     Args:
         logits (torch.Tensor):
             - avg logit per node for a certain class
@@ -31,16 +47,16 @@ def logits_ensemble(logits: torch.Tensor, node_weights: torch.Tensor):
 
     """
 
-    # TODO make it  work for all classes simultatinously it currently only workds
-    # for one class at a time
+    assert logits.shape == (num_nodes, num_classes, num_classes)
+    assert node_weights.shape == (num_nodes, num_classes, 1)
 
     return (logits * node_weights).sum(dim=0)
 
 
 # TODO maybe seperate the summing and dividing (break up average into two functions)
 def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_classes: int) -> (torch.Tensor, torch.Tensor):
-    """
-    Computes the average logit for samples with the given label.
+    r"""
+    Computes the average logit for samples for the given label. (\hat{z}^c_k)
 
     Args:
         logits (torch.Tensor): A 2D tensor of shape (batch_size, num_classes),
@@ -53,8 +69,9 @@ def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_cl
         torch.Tensor: A 2D tensor of shape (targets, num_classes), where each element
                       is the average logit across all samples for the corresponding class.
     """
-    assert logits.dim() != 2, "must be 2D with shape (batch_size, num_classes)"
-    assert targets.dim() != 1 or targets.size(0) != logits.size(0), "Targets tensor must be 1D with the same batch size as logits."
+    assert logits.dim() == 2, "must be 2D with shape (batch_size, num_classes)"
+    assert targets.dim() == 1, "targets must be 1D tensor"
+    assert targets.size(0) == logits.size(0), "targets have the same batch size as logits."
 
     # Create tensors to store cumulative logits and sample counts
     logit_sums = torch.zeros(num_classes, num_classes, device=logits.device)

@@ -40,6 +40,8 @@ class NebulaDataset(Dataset, ABC):
     ):
         super().__init__()
 
+        assert isinstance(partition, Partition)
+
         self.partition = partition
         self.num_classes = num_classes
         self.batch_size = batch_size

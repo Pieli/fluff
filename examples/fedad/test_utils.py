@@ -152,35 +152,64 @@ def test_node_weights_all_equal():
     nodes = 4
     classes = 10
 
-    node_statistics = torch.ones(nodes, classes)
+    node_statistics = torch.ones(nodes, classes, 1)
 
-    result = utils.node_weights(node_statistics)
+    result = utils.node_weights(node_statistics, classes, nodes)
 
-    expected = torch.ones(nodes, classes) / nodes
+    expected = torch.ones(nodes, classes, 1) / nodes
 
     assert torch.allclose(result, expected)
 
 
 def test_node_weights_all_unequal():
-    node_statistics = torch.tensor([[1, 2, 3, 4], [4, 3, 2, 1]])
+    nodes = 2
+    classes = 4
 
-    result = utils.node_weights(node_statistics)
+    node_statistics = torch.tensor([[[1],
+                                     [2],
+                                     [3],
+                                     [4]],
 
-    expected = torch.tensor([[0.2, 0.4, 0.6, 0.8], [0.8, 0.6, 0.4, 0.2]])
+                                    [[4],
+                                     [3],
+                                     [2],
+                                     [1]]])
 
+    result = utils.node_weights(node_statistics, classes, nodes)
+
+    expected = torch.tensor([[[0.2000],
+                              [0.4000],
+                              [0.6000],
+                              [0.8000]],
+
+                             [[0.8000],
+                              [0.6000],
+                              [0.4000],
+                              [0.2000]]])
     print(result)
 
     assert torch.allclose(result, expected)
 
 
 def test_logits_ensemble_simple():
-    node_weights = torch.tensor([[0.5, 0.5], [0.5, 0.5]])
+    classes = 2
+    nodes = 2
 
-    logits = torch.tensor([[1, 1], [2, 2]])
+    node_weights = torch.tensor([[[1.0],
+                                 [0.5]],
+                                 [[0.0],
+                                  [0.5]]])
 
-    result = utils.logits_ensemble(logits, node_weights)
+    logits = torch.tensor([[[1, 1],
+                            [2, 2]],
+                           [[3, 3],
+                            [4, 4]]
+                           ])
 
-    expected = torch.tensor([1.5, 1.5])
+    result = utils.logits_ensemble(logits, node_weights, classes, nodes)
+
+    expected = torch.tensor([[1.0, 1.0],
+                             [3.0, 3.0]])
 
     assert torch.allclose(result, expected)
 
