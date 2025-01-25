@@ -1,9 +1,9 @@
 import numpy as np
 
-from .partitions import partitions
+from .partitions import Partition
 
 
-class UnbalancedIIDMap(partitions.Partition):
+class UnbalancedIIDMap(Partition):
     def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float = None):
         super().__init__(partition_id, partitions_number, partition_parameter)
 
