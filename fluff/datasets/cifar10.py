@@ -39,9 +39,13 @@ class CIFAR10Dataset(NebulaDataset):
         self.partition.set_num_classes(self.num_classes)
         self.partition_map = self.partition.generate(self.train_set)
         self.train_indices_map = self.partition_map[self.partition.get_id()]
-        self.local_test_indices_map = self.partition.generate(self.test_set)[self.partition.get_id()]
+        self.local_test_indices_map = self.partition.generate(self.test_set)[
+            self.partition.get_id()]
 
-        print(f"Len of train indices map: {len(self.train_indices_map)}")
+        print(
+            f"Len of train indices map (global): {len(self.train_set)}")
+        print(
+            f"Len of train indices map (local)): {len(self.train_indices_map)}")
         print(
             f"Len of test indices map (global): {len(self.test_indices_map)}")
         print(
