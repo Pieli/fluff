@@ -25,11 +25,8 @@ class CIFAR100Dataset(NebulaDataset):
 
     def initialize_dataset(self):
         # Load CIFAR10 train dataset
-        if self.train_set is None:
-            self.train_set = self.load_cifar100_dataset(train=True)
-
-        if self.test_set is None:
-            self.test_set = self.load_cifar100_dataset(train=False)
+        self.train_set = self.load_cifar100_dataset(train=True)
+        self.test_set = self.load_cifar100_dataset(train=False)
 
         # All nodes have the same test set (indices are the same for all nodes)
         self.test_indices_map = list(range(len(self.test_set)))

@@ -10,8 +10,8 @@ def logits_ensemble_eq_3(raw_logits: list[torch.Tensor],
                          num_classes: int,
                          num_nodes: int,) -> torch.Tensor:
 
-    assert isinstance(raw_logits, list)
-    assert isinstance(raw_statistics, list)
+    assert isinstance(raw_logits, (list, tuple))
+    assert isinstance(raw_statistics, (list, tuple))
     assert len(raw_logits) == len(raw_statistics)
 
     node_logits = torch.stack(raw_logits)

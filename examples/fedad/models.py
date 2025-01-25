@@ -109,7 +109,7 @@ class LitCNN_Cifar100(pl.LightningModule):
         self.log("test_loss", test_loss)
 
     def on_train_epoch_end(self):
-        if self._distillation:
+        if not self._distillation:
             self._recorded_logits = []
             self._recorded_counts = []
             return
@@ -131,7 +131,7 @@ class LitCNN_Cifar100(pl.LightningModule):
         self._recorded_counts = []
 
     def on_train_end(self):
-        if self._distillation:
+        if not self._distillation:
             return
 
         print("Training end")
@@ -159,3 +159,68 @@ class LitCNN_Cifar100(pl.LightningModule):
     def set_distillation(self, distillation: bool) -> None:
         assert isinstance(distillation, bool)
         self._distillation = distillation
+        return self
+
+
+class ServerLitCNNCifar100(pl.LightningModule):
+    def __init__(self, model: nn.Module, distillation_phase: bool = False):
+        super().__init__()
+
+        assert isinstance(model, nn.Module)
+
+        self.cnn = model
+        self._distillation_phase = distillation_phase
+        self._ensemble_logits: list[torch.Tensor] = None
+
+        self.criterion = nn.CrossEntropyLoss()
+
+    def forward(self, x):
+        return self.cnn(x)
+
+    # TODO test this
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+
+        loss = self.criterion(y_hat, y)
+        if self._distillation_phase:
+            (result, counts) = utils.average_logits_per_class(y_hat, y, 100)
+            loss = self.l2_distillation(result, self.ensemble_logits[batch_idx])
+
+        self.log("loss", loss)
+        return loss
+
+    # TODO test this
+    def l2_distillation(self, server_log: torch.Tensor, ensemble_log: torch.Tensor) -> torch.Tensor:
+        return F.mse_loss(server_log, ensemble_log, reduction="sum") * (1 / server_log.size(1))
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        val_loss = self.criterion(y_hat, y)
+        self.log("val_loss", val_loss)
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        test_loss = self.criterion(y_hat, y)
+        self.log("test_loss", test_loss)
+
+    def configure_optimizers(self):
+        return torch.optim.SGD(self.parameters(), lr=0.0025, weight_decay=3e-4)
+
+    def get_average_logits(self) -> torch.Tensor:
+        return self._average_logits
+
+    def get_class_counts(self) -> torch.Tensor:
+        return self._class_counts
+
+    def set_distillation_phase(self, distillation: bool) -> None:
+        assert isinstance(distillation, bool)
+        self._distillation_phase = distillation
+        return self
+
+    def set_ensemble_logits(self, ensemble_logits: list) -> None:
+        assert isinstance(ensemble_logits, list)
+        self._ensemble_logits = ensemble_logits
+        return self
