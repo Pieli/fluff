@@ -89,7 +89,7 @@ def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_cl
                       is the average logit across all samples for the corresponding class.
     """
     assert logits.dim() == 2, "must be 2D with shape (batch_size, num_classes)"
-    assert logits.shape[1] == num_classes, "must be 2D with shape (batch_size, num_classes)"
+    assert logits.size(1) == num_classes, "must be 2D with shape (batch_size, num_classes)"
     assert targets.dim() == 1, "targets must be 1D tensor"
     assert targets.size(0) == logits.size(0), "targets have the same batch size as logits."
 

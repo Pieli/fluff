@@ -13,7 +13,7 @@ from fluff.datasets.partitions import DirichletMap, NullMap
 
 import utils
 from datasets import CIFAR100Dataset
-from models import LitCNN, LitCNN_Cifar100, ServerLitCNNCifar100
+from models import LitCNN, LitCNN_Cifar100, ServerLitCNNCifar100, CNN
 
 
 @timer
@@ -82,7 +82,7 @@ def run(args: Namespace):
              for node in nodes]
 
     server = Node("server",
-                  ServerLitCNNCifar100(model.cnn, distillation_phase=False),
+                  ServerLitCNNCifar100(CNN(), distillation_phase=False),
                   CIFAR100Dataset(
                       batch_size=16,
                       partition=NullMap(
