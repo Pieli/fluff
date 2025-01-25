@@ -1,9 +1,8 @@
-
 import torch
 from torch.utils import data
 import lightning as pl
 
-from typing import Union
+from typing import Union, Optional
 
 from .datasets.dataset import NebulaDataset
 
@@ -12,12 +11,14 @@ class Node:
     def __init__(self, name: str,
                  model: pl.LightningModule,
                  dataset: NebulaDataset,
-                 num_workers: int = 2) -> None:
+                 num_workers: int = 2,
+                 seed: Optional[int] = None) -> None:
 
         self._name = name
         self._model = model
         self._dataset = dataset
         self._num_workers = num_workers
+        self._seed = seed
 
     def setup(self):
         training_dataset = data.Subset(self._dataset.train_set, self._dataset.train_indices_map)
@@ -28,14 +29,15 @@ class Node:
 
         # split the train set into two
         seed = torch.Generator().manual_seed(42)
-
         train_set, valid_set = data.random_split(
             training_dataset, [train_set_size, valid_set_size], generator=seed)
 
+        generator = torch.Generator().manual_seed(self._seed) if self._seed else None
         self.train_loader = data.DataLoader(train_set,
                                             batch_size=self._dataset.get_batch_size(),
                                             shuffle=True,
-                                            num_workers=self._num_workers)
+                                            num_workers=self._num_workers,
+                                            generator=generator)
 
         self.val_loader = data.DataLoader(valid_set,
                                           batch_size=self._dataset.get_batch_size(),
