@@ -85,7 +85,8 @@ class LitCNN_Cifar100(pl.LightningModule):
         y_hat = self(x)
 
         if self._distillation:
-            (result, counts) = utils.average_logits_per_class(y_hat.detach(), y, 100)
+            (result, counts) = utils.average_logits_per_class(
+                y_hat.detach(), y, 100)
             self._recorded_logits.append(result)
             self._recorded_counts.append(counts)
 
@@ -105,14 +106,14 @@ class LitCNN_Cifar100(pl.LightningModule):
         test_loss = self.criterion(y_hat, y)
         self.log("test_loss", test_loss)
 
-    def on_epoch_end(self):
+    def on_train_epoch_end(self):
         if not self._distillation:
             return
 
         print("########## Epoch ended ############")
 
-        self._epoch_logits.append(self._recorded_logits.copy())
-        self._epoch_counts.append(self._recorded_counts.copy())
+        self._epoch_logits.extend(self._recorded_logits.copy())
+        self._epoch_counts.extend(self._recorded_counts.copy())
         self._recorded_logits = []
         self._recorded_counts = []
 
@@ -154,7 +155,8 @@ class ServerLitCNNCifar100(pl.LightningModule):
         loss = self.criterion(y_hat, y)
         if self._distillation_phase:
             (result, counts) = utils.average_logits_per_class(y_hat, y, 100)
-            loss = self.l2_distillation(result, self._ensemble_logits[batch_idx])
+            loss = self.l2_distillation(
+                result, self._ensemble_logits[batch_idx])
 
         self.log("loss", loss)
         return loss

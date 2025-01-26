@@ -8,7 +8,7 @@ sys.path.append('../..')
 from fluff import Node
 from fluff.utils import timer
 from fluff.datasets.cifar10 import CIFAR10Dataset
-from fluff.datasets.partitions import DirichletMap, NullMap
+from fluff.datasets.partitions import DirichletMap, NullMap, BalancedFraction
 
 
 import utils
@@ -74,25 +74,17 @@ def run(args: Namespace):
     nodes = [Node(node.get_name(),
                   node.get_model().set_distillation(True),
                   CIFAR100Dataset(batch_size=16,
-                                  partition=NullMap(
-                                      partition_id=0,
-                                      partitions_number=1
-                                  )),
+                                  partition=BalancedFraction(percent=0.1)),
                   seed=420).setup()
              for node in nodes]
 
     server = Node("server",
-                  ServerLitCNNCifar100(CNN(), distillation_phase=False),
+                  ServerLitCNNCifar100(
+                      CNN(num_classes=100), distillation_phase=False),
                   CIFAR100Dataset(
                       batch_size=16,
-                      partition=NullMap(
-                          partition_id=0,
-                          partitions_number=1
-                      )),
+                      partition=BalancedFraction(percent=0.1)),
                   seed=420).setup()
-    # TODO
-    # distillation method
-    # pretrain server
 
     print("\N{Flexed Biceps} Pre-Training server")
     server.train(args.epochs, args.dev_batches)
@@ -104,7 +96,7 @@ def run(args: Namespace):
         round_counts = []
         for node in nodes:
             print(f"Training {node.get_name()}")
-            node.train(1, args.dev_batches)
+            node.train(1, None)
             round_logits.append(node.get_model().get_average_logits())
             round_counts.append(node.get_model().get_class_counts())
 
@@ -115,7 +107,5 @@ def run(args: Namespace):
                       for log, count in zip(batch_logits, batch_counts)]
 
         server.get_model().set_ensemble_logits(ens_logits)
-        server.train(1, args.dev_batches)
-        server.test(1, args.dev_batches)
-        # server.distill(nodes)
-        print(round_logits)
+        server.train(1, None)
+        server.test(1, None)
