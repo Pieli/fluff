@@ -1,6 +1,7 @@
 from torch import nn
 import lightning as pl
 from argparse import Namespace
+from datetime import datetime
 
 import sys
 sys.path.append('../..')
@@ -16,9 +17,27 @@ from datasets import CIFAR100Dataset
 from models import LitCNN, LitCNN_Cifar100, ServerLitCNNCifar100, CNN
 
 
+def persist_configuration(args: Namespace, file_name: str):
+    with open(file_name, "w") as f:
+        f.writelines(
+            f"{name}\t{value}\n"
+            for (name, value) in args._get_kwargs()
+        )
+
+
+def persist_model(model: nn.Module, dir: str):
+    pass
+
+
+def generate_model_run_name() -> str:
+    return f"Fedad_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}"
+
+
 @timer
 def run(args: Namespace):
-    pl.seed_everything(42, workers=True)
+    pl.seed_everything(args.seed, workers=True)
+    exp_name = generate_model_run_name()
+    # persist_configuration(args, "config.")
 
     # Training
     print("🚀 Starting training")
@@ -26,15 +45,16 @@ def run(args: Namespace):
     for num in range(args.nodes):
 
         node_cifar10 = Node(f"node-{num}",
+                            exp_name,
                             LitCNN(),
                             CIFAR10Dataset(
                                 batch_size=16,
                                 partition=DirichletMap(
                                     partition_id=num,
                                     partitions_number=args.nodes
-                                ))).setup()
-
-        nodes.append(node_cifar10)
+                                )),
+                            num_workers=args.workers
+                            ).setup()
 
         # start training cifar10
         print(f"Training CIFAR10 - {node_cifar10.get_name()}")
@@ -55,7 +75,8 @@ def run(args: Namespace):
 
         # set node to new model + dataset
         node_cifar100 = Node(f"node-{num}",
-                             LitCNN_Cifar100(model.cnn, distillation=False),
+                             exp_name,
+                             LitCNN_Cifar100(model.cnn),
                              CIFAR100Dataset(
                                  batch_size=16,
                                  partition=NullMap(
@@ -63,49 +84,30 @@ def run(args: Namespace):
                                      partitions_number=args.nodes
                                  ))).setup()
 
-        nodes[num] = node_cifar100
-        # del node_cifar10
+        nodes.append(node_cifar100)
 
         print(f"Training CIFAR100 - {node_cifar100.get_name()}")
-        # 10 epochs for CIFAR100
-        node_cifar100.train(args.epochs, args.dev_batches)
+        node_cifar100.train(1, args.dev_batches)
         node_cifar100.test(args.epochs, args.dev_batches)
 
-    nodes = [Node(node.get_name(),
-                  node.get_model().set_distillation(True),
-                  CIFAR100Dataset(batch_size=16,
-                                  partition=BalancedFraction(percent=0.1)),
-                  seed=420).setup()
-             for node in nodes]
+    nodes = [node.get_model().cnn for node in nodes]
 
     server = Node("server",
+                  exp_name,
                   ServerLitCNNCifar100(
-                      CNN(num_classes=100), distillation_phase=False),
+                      CNN(num_classes=100),
+                      distillation_phase=False,
+                      ensemble=nodes,
+                  ),
                   CIFAR100Dataset(
-                      batch_size=16,
+                      batch_size=512,
                       partition=BalancedFraction(percent=0.1)),
-                  seed=420).setup()
+                  ).setup()
 
     print("\N{Flexed Biceps} Pre-Training server")
-    server.train(args.epochs, args.dev_batches)
+    server.train(1, args.dev_batches)  # TODO change 1 -> 10
 
     print("🧫 Starting distillation")
     server.get_model().set_distillation_phase(True)
-    for round in range(args.rounds):
-        round_logits = []
-        round_counts = []
-        for node in nodes:
-            print(f"Training {node.get_name()}")
-            node.train(1, None)
-            round_logits.append(node.get_model().get_average_logits())
-            round_counts.append(node.get_model().get_class_counts())
-
-        batch_logits = zip(*round_logits)
-        batch_counts = zip(*round_counts)
-
-        ens_logits = [utils.logits_ensemble_eq_3(log, count, 100, args.nodes)
-                      for log, count in zip(batch_logits, batch_counts)]
-
-        server.get_model().set_ensemble_logits(ens_logits)
-        server.train(1, None)
-        server.test(1, None)
+    server.train(1, None)
+    server.test(1, None)
