@@ -1,6 +1,7 @@
 import torch
 from torch.utils import data
 import lightning as pl
+from lightning.pytorch.loggers import TensorBoardLogger
 
 from typing import Union, Optional
 
@@ -8,7 +9,9 @@ from .datasets.dataset import NebulaDataset
 
 
 class Node:
-    def __init__(self, name: str,
+    def __init__(self,
+                 name: str,
+                 experiement_name: str,
                  model: pl.LightningModule,
                  dataset: NebulaDataset,
                  num_workers: int = 2,
@@ -20,8 +23,13 @@ class Node:
         self._num_workers = num_workers
         self._seed = seed
 
+        self._logger = TensorBoardLogger(f"./fluff_logs/{experiement_name}",
+                                         self._name,
+                                         type(self._model).__name__)
+
     def setup(self):
-        training_dataset = data.Subset(self._dataset.train_set, self._dataset.train_indices_map)
+        training_dataset = data.Subset(
+            self._dataset.train_set, self._dataset.train_indices_map)
         test_dataset = self._dataset.test_set
 
         train_set_size = int(len(training_dataset) * 0.8)
@@ -52,14 +60,16 @@ class Node:
         return self
 
     def train(self, epochs: int, dev_runs: Union[bool | int] = False) -> None:
-        trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs, deterministic=True)
+        trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs,
+                             logger=self._logger, deterministic=True)
 
         trainer.fit(model=self._model,
                     train_dataloaders=self.train_loader,
                     val_dataloaders=self.val_loader)
 
     def test(self, epochs: int, dev_runs=False) -> None:
-        trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs, deterministic=True)
+        trainer = pl.Trainer(
+            max_epochs=epochs, fast_dev_run=dev_runs, deterministic=True)
         trainer.test(model=self._model, dataloaders=self.test_loader)
 
     def get_model(self) -> pl.LightningModule:
@@ -70,7 +80,8 @@ class Node:
 
     def __repr__(self) -> str:
 
-        model_lines = [13 * " " + line for line in repr(self._model).splitlines()]
+        model_lines = [13 * " " +
+                       line for line in repr(self._model).splitlines()]
         model_lines[0] = model_lines[0].lstrip()
 
         l4 = " " * 4
