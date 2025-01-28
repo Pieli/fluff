@@ -1,12 +1,13 @@
 import torch
+from typing import Iterable
 
 
 def importance_sampling() -> torch.Tensor:
     pass
 
 
-def logits_ensemble_eq_3(raw_logits: list[torch.Tensor],
-                         raw_statistics: list[torch.Tensor],
+def logits_ensemble_eq_3(raw_logits: Iterable[torch.Tensor],
+                         raw_statistics: Iterable[torch.Tensor],
                          num_classes: int,
                          num_nodes: int,) -> torch.Tensor:
 
@@ -38,7 +39,8 @@ def node_weights(node_stats: torch.Tensor, num_classes: int, num_nodes: int) -> 
     assert node_stats.shape == (num_nodes, num_classes, 1)
 
     num_per_class = node_stats.sum(dim=0)
-    non_zero = torch.where(num_per_class == 0, torch.ones_like(num_per_class), num_per_class)
+    non_zero = torch.where(num_per_class == 0, torch.ones_like(
+        num_per_class), num_per_class)
     node_based_weight = node_stats / non_zero
     return node_based_weight
 
@@ -89,9 +91,11 @@ def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_cl
                       is the average logit across all samples for the corresponding class.
     """
     assert logits.dim() == 2, "must be 2D with shape (batch_size, num_classes)"
-    assert logits.size(1) == num_classes, "must be 2D with shape (batch_size, num_classes)"
+    assert logits.size(
+        1) == num_classes, "must be 2D with shape (batch_size, num_classes)"
     assert targets.dim() == 1, "targets must be 1D tensor"
-    assert targets.size(0) == logits.size(0), "targets have the same batch size as logits."
+    assert targets.size(0) == logits.size(
+        0), "targets have the same batch size as logits."
 
     # Create tensors to store cumulative logits and sample counts
     logit_sums = torch.zeros(num_classes, num_classes, device=logits.device)
@@ -107,7 +111,8 @@ def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_cl
         class_counts[i] = mask.sum()
 
     # Avoid division by zero by replacing zero counts with ones
-    counts = torch.where(class_counts == 0, torch.ones_like(class_counts), class_counts)
+    counts = torch.where(class_counts == 0, torch.ones_like(
+        class_counts), class_counts)
     counts = torch.unsqueeze(counts, dim=1)
 
     # also unsqueeze the real count
