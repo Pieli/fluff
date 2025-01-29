@@ -44,12 +44,16 @@ class LitCNN(pl.LightningModule):
         self.test_acc = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=num_classes)
 
+        self._recorded_statistics: torch.Tensor = torch.zeros(10)
+
     def forward(self, x):
         return self.cnn(x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
+
+        self._recorded_statistics += y
 
         loss = self.criterion(y_hat, y)
         self.train_acc(y_hat, y)
@@ -76,6 +80,9 @@ class LitCNN(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.SGD(self.parameters(), lr=0.01, weight_decay=3e-4)
 
+    def get_statistics(self) -> torch.tensor:
+        return self._recorded_statistics
+
 
 class ServerLitCNNCifar100(pl.LightningModule):
     def __init__(self, model: nn.Module, ensemble: list[nn.Module], distillation_phase: bool = False, ):
@@ -87,6 +94,7 @@ class ServerLitCNNCifar100(pl.LightningModule):
         self.ensemble = nn.ModuleList(ensemble)
         self.criterion = nn.CrossEntropyLoss()
         self._distillation_phase = distillation_phase
+        self._count_stats
 
         self.train_acc = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=10)
@@ -101,29 +109,23 @@ class ServerLitCNNCifar100(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-
-        (serv_result, serv_counts) = utils.average_logits_per_class(
-            y_hat, y, 10,
-        )
+        serv_result = utils.average_logits_per_class(y_hat, y, 10)
 
         batch_logits = []
-        batch_counts = []
         for ens in self.ensemble:
             ens_y_hat = ens.forward(x)
-            (result, counts) = utils.average_logits_per_class(
-                ens_y_hat, y, 10,
-            )
+            result = utils.average_logits_per_class(ens_y_hat, y, 10)
 
             batch_logits.append(result)
-            batch_counts.append(counts)
 
         ens_logits = utils.logits_ensemble_eq_3(batch_logits,
-                                                batch_counts,
+                                                self._count_stats,
                                                 10,
                                                 len(self.ensemble))
-        loss = self.l2_distillation(result, ens_logits)
 
-        self.train_acc(result, ens_logits)
+        loss = self.kl_divergence(serv_result, ens_logits.detach())
+
+        self.train_acc(serv_result, ens_logits)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_loss", loss, on_step=False, on_epoch=True)
         return loss
@@ -133,6 +135,11 @@ class ServerLitCNNCifar100(pl.LightningModule):
         return F.mse_loss(server_log.softmax(dim=1),
                           ensemble_log.softmax(dim=1),
                           reduction="sum") * (1 / server_log.size(1))
+
+    def kl_divergence(self, p, q):
+        return F.kl_div(F.log_softmax(p, dim=1),
+                        F.softmax(q, dim=1),
+                        reduction='batchmean')
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -153,9 +160,12 @@ class ServerLitCNNCifar100(pl.LightningModule):
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.cnn.parameters(), lr=0.1)
+        return torch.optim.Adam(self.cnn.parameters(), lr=1e-3)
 
     def set_distillation_phase(self, distillation: bool):
         assert isinstance(distillation, bool)
         self._distillation_phase = distillation
         return self
+
+    def set_count_statistics(self, counts: list[torch.tensor]):
+        self._count_stats

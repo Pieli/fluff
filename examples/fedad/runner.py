@@ -45,7 +45,11 @@ class ServerNode(Node):
         test_dataset = self._dataset.test_set
 
         train_set = training_dataset
-        valid_set = cif_10.train_set
+        _, valid_set = data.random_split(
+            cif_10.train_set,
+            (0.8, 0.2),
+            generator=torch.Generator().manual_seed(42)
+        )
         test_set = cif_10.test_set
 
         generator = torch.Generator().manual_seed(self._seed) if self._seed else None
@@ -151,8 +155,8 @@ def run(args: Namespace):
                             ensemble=ens,
                         ),
                         CIFAR100Dataset(
-                            batch_size=16,
-                            partition=BalancedFraction(percent=0.4)),
+                            batch_size=512,
+                            partition=BalancedFraction(percent=0.8)),
                         num_workers=args.workers
                         ).setup()
 
