@@ -121,7 +121,7 @@ def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_cl
     # Compute the average logit per class
     avg_logits = logit_sums / counts
 
-    return avg_logits, class_counts
+    return avg_logits
 
 
 # fedad - equation 7

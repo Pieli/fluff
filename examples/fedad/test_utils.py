@@ -257,9 +257,8 @@ def test_average_logits_simple():
 
     num_classes = 3
 
-    (avg_l, count) = utils.average_logits_per_class(logits, targets, num_classes)
+    avg_l = utils.average_logits_per_class(logits, targets, num_classes)
 
-    assert count.sum() == len(targets)
     assert torch.allclose(avg_l, torch.ones(num_classes, num_classes))
 
 
@@ -278,7 +277,7 @@ def test_average_logits_simple_2():
 
     # Compute average logits per class
     num_classes = 4
-    (avg_l, count) = utils.average_logits_per_class(logits, targets, num_classes)
+    avg_l = utils.average_logits_per_class(logits, targets, num_classes)
 
     answer = torch.tensor([
         [1.0, 2.0, 3.0, 4.0],
@@ -287,12 +286,4 @@ def test_average_logits_simple_2():
         [1.0, 1.0, 1.0, 1.0],
     ])
 
-    assert count.sum() == len(targets)
     assert torch.allclose(avg_l, answer)
-
-    # test 2
-
-    # Gold labels
-    targets = torch.tensor([0, 1, 2, 1, 0])
-    (_, count) = utils.average_logits_per_class(logits, targets, num_classes)
-    assert count.sum() == len(targets)
