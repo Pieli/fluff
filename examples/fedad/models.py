@@ -29,52 +29,7 @@ class CNN(nn.Module):
 
 
 class LitCNN(pl.LightningModule):
-    def __init__(self):
-        super().__init__()
-
-        self.cnn = CNN(num_classes=10)
-        self.criterion = nn.CrossEntropyLoss()
-
-        self.train_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=10)
-        self.val_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=10)
-
-    def forward(self, x):
-        return self.cnn(x)
-
-    def training_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
-
-        self.train_acc(y_hat, y)
-        self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
-        self.log("train_loss", loss)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        val_loss = self.criterion(y_hat, y)
-
-        self.val_acc(y_hat, y)
-        self.log("val_acc", self.val_acc, on_step=True, on_epoch=True)
-        self.log("val_loss", val_loss, on_step=True, on_epoch=True)
-
-    def test_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        test_loss = self.criterion(y_hat, y)
-        self.log("test_loss", test_loss)
-
-    def configure_optimizers(self):
-        # TODO do cosine annealing
-        return torch.optim.SGD(self.parameters(), lr=0.0025, weight_decay=3e-4)
-
-
-class LitCNN_Cifar100(pl.LightningModule):
-    def __init__(self, model: nn.Module):
+    def __init__(self, model: nn.Module, num_classes: int = 10):
         super().__init__()
 
         assert isinstance(model, nn.Module)
@@ -83,9 +38,11 @@ class LitCNN_Cifar100(pl.LightningModule):
         self.criterion = nn.CrossEntropyLoss()
 
         self.train_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=100)
+            task="multiclass", num_classes=num_classes)
         self.val_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=100)
+            task="multiclass", num_classes=num_classes)
+        self.test_acc = torchmetrics.classification.Accuracy(
+            task="multiclass", num_classes=num_classes)
 
     def forward(self, x):
         return self.cnn(x)
@@ -97,28 +54,31 @@ class LitCNN_Cifar100(pl.LightningModule):
         loss = self.criterion(y_hat, y)
         self.train_acc(y_hat, y)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         val_loss = self.criterion(y_hat, y)
+        self.val_acc(y_hat, y)
         self.log("val_acc", self.val_acc, on_step=True, on_epoch=True)
-        self.log("val_loss", val_loss, on_step=True, on_epoch=True)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         test_loss = self.criterion(y_hat, y)
-        self.log("test_loss", test_loss)
+        self.test_acc(y_hat, y)
+        self.log("test_acc", self.test_acc, on_step=True, on_epoch=True)
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=0.0025, weight_decay=3e-4)
+        return torch.optim.SGD(self.parameters(), lr=0.01, weight_decay=3e-4)
 
 
 class ServerLitCNNCifar100(pl.LightningModule):
-    def __init__(self, model: nn.Module, distillation_phase: bool = False, ensemble: list[nn.Module] = []):
+    def __init__(self, model: nn.Module, ensemble: list[nn.Module], distillation_phase: bool = False, ):
         super().__init__()
 
         assert isinstance(model, nn.Module)
@@ -129,9 +89,11 @@ class ServerLitCNNCifar100(pl.LightningModule):
         self._distillation_phase = distillation_phase
 
         self.train_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=100)
+            task="multiclass", num_classes=10)
         self.val_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=100)
+            task="multiclass", num_classes=10)
+        self.test_acc = torchmetrics.classification.Accuracy(
+            task="multiclass", num_classes=10)
 
     def forward(self, x):
         return self.cnn(x)
@@ -140,57 +102,58 @@ class ServerLitCNNCifar100(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
 
-        if self._distillation_phase:
-            (serv_result, serv_counts) = utils.average_logits_per_class(
-                y_hat, y, 100,
+        (serv_result, serv_counts) = utils.average_logits_per_class(
+            y_hat, y, 10,
+        )
+
+        batch_logits = []
+        batch_counts = []
+        for ens in self.ensemble:
+            ens_y_hat = ens.forward(x)
+            (result, counts) = utils.average_logits_per_class(
+                ens_y_hat, y, 10,
             )
 
-            batch_logits = []
-            batch_counts = []
-            for ens in self.ensemble:
-                ens_y_hat = ens.forward(x)
-                (result, counts) = utils.average_logits_per_class(
-                    ens_y_hat, y, 100,
-                )
+            batch_logits.append(result)
+            batch_counts.append(counts)
 
-                batch_logits.append(result)
-                batch_counts.append(counts)
+        ens_logits = utils.logits_ensemble_eq_3(batch_logits,
+                                                batch_counts,
+                                                10,
+                                                len(self.ensemble))
+        loss = self.l2_distillation(result, ens_logits)
 
-            ens_logits = utils.logits_ensemble_eq_3(batch_logits,
-                                                    batch_counts,
-                                                    100,
-                                                    len(self.ensemble))
-
-            loss = self.l2_distillation(result, ens_logits)
-        else:
-            loss = self.criterion(y_hat, y)
-
-        self.train_acc(y_hat, y)
+        self.train_acc(result, ens_logits)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, on_step=False, on_epoch=True)
         return loss
 
     # TODO test this
     def l2_distillation(self, server_log: torch.Tensor, ensemble_log: torch.Tensor) -> torch.Tensor:
-        return F.mse_loss(server_log, ensemble_log, reduction="sum") * (1 / server_log.size(1))
+        return F.mse_loss(server_log.softmax(dim=1),
+                          ensemble_log.softmax(dim=1),
+                          reduction="sum") * (1 / server_log.size(1))
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         val_loss = self.criterion(y_hat, y)
+
+        self.val_acc(y_hat, y)
         self.log("val_acc", self.val_acc, on_step=True, on_epoch=True)
-        self.log("val_loss", val_loss, on_step=True, on_epoch=True)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         test_loss = self.criterion(y_hat, y)
-        self.log("test_loss", test_loss)
+
+        self.test_acc(y_hat, y)
+        self.log("test_acc", self.test_acc, on_step=True, on_epoch=True)
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
-        if self._distillation_phase:
-            return torch.optim.Adam(self.cnn.parameters(), lr=1e-3, weight_decay=0)
-        return torch.optim.SGD(self.cnn.parameters(), lr=0.0025, weight_decay=3e-4)
+        return torch.optim.Adam(self.cnn.parameters(), lr=0.1)
 
     def set_distillation_phase(self, distillation: bool):
         assert isinstance(distillation, bool)

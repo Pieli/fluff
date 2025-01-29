@@ -1,8 +1,12 @@
+import torch
 from torch import nn
 import lightning as pl
 from argparse import Namespace
 from datetime import datetime
 
+from torch.utils import data
+
+import os
 import sys
 sys.path.append('../..')
 
@@ -14,7 +18,53 @@ from fluff.datasets.partitions import DirichletMap, NullMap, BalancedFraction
 
 import utils
 from datasets import CIFAR100Dataset
-from models import LitCNN, LitCNN_Cifar100, ServerLitCNNCifar100, CNN
+from models import LitCNN, ServerLitCNNCifar100, CNN
+
+
+class ServerNode(Node):
+    def __init__(self,
+                 name: str,
+                 experiement_name: str,
+                 model: pl.LightningModule,
+                 dataset,
+                 num_workers: int = 2,
+                 seed=None) -> None:
+        super().__init__(name,
+                         experiement_name,
+                         model,
+                         dataset,
+                         num_workers,
+                         seed)
+
+    def setup(self):
+        cif_10 = CIFAR10Dataset(BalancedFraction(percent=0.9),
+                                batch_size=self._dataset.get_batch_size())
+
+        training_dataset = data.Subset(
+            self._dataset.train_set, self._dataset.train_indices_map)
+        test_dataset = self._dataset.test_set
+
+        train_set = training_dataset
+        valid_set = cif_10.train_set
+        test_set = cif_10.test_set
+
+        generator = torch.Generator().manual_seed(self._seed) if self._seed else None
+        self.train_loader = data.DataLoader(train_set,
+                                            batch_size=self._dataset.get_batch_size(),
+                                            shuffle=True,
+                                            num_workers=self._num_workers,
+                                            generator=generator)
+
+        self.val_loader = data.DataLoader(valid_set,
+                                          batch_size=self._dataset.get_batch_size(),
+                                          shuffle=False,
+                                          num_workers=self._num_workers)
+
+        self.test_loader = data.DataLoader(test_dataset,
+                                           batch_size=self._dataset.get_batch_size(),
+                                           shuffle=False,
+                                           num_workers=self._num_workers)
+        return self
 
 
 def persist_configuration(args: Namespace, file_name: str):
@@ -33,20 +83,13 @@ def generate_model_run_name() -> str:
     return f"Fedad_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}"
 
 
-@timer
-def run(args: Namespace):
-    pl.seed_everything(args.seed, workers=True)
-    exp_name = generate_model_run_name()
-    # persist_configuration(args, "config.")
-
-    # Training
-    print("🚀 Starting training")
-    nodes = []
+def training_phase(args: Namespace, name: str, save=False) -> list[nn.Module]:
+    nodes: list[Node] = []
     for num in range(args.nodes):
-
         node_cifar10 = Node(f"node-{num}",
-                            exp_name,
-                            LitCNN(),
+                            name,
+                            LitCNN(CNN(num_classes=10),
+                                   num_classes=10),
                             CIFAR10Dataset(
                                 batch_size=16,
                                 partition=DirichletMap(
@@ -63,51 +106,58 @@ def run(args: Namespace):
         node_cifar10.train(args.epochs, args.dev_batches)
         node_cifar10.test(args.epochs, args.dev_batches)
 
-        # change model
-        model = node_cifar10.get_model()
+        nodes.append(node_cifar10)
 
-        for param in model.cnn.parameters():
-            param.requires_grad = False
+    if save:
+        for node in nodes:
+            print(f"Saving model ({node.get_name()}) ...")
+            torch.save(node.get_model().cnn.state_dict(),
+                       f"./models/{node.get_name()}")
 
-        model.cnn.fc2 = nn.Linear(64, 100)
-        model.cnn.fc2.requires_grad = True
-        model.cnn.fc2.bias.requires_grad = True
+    return [node.get_model().cnn for node in nodes]
 
-        # set node to new model + dataset
-        node_cifar100 = Node(f"node-{num}",
-                             exp_name,
-                             LitCNN_Cifar100(model.cnn),
-                             CIFAR100Dataset(
-                                 batch_size=16,
-                                 partition=NullMap(
-                                     partition_id=num,
-                                     partitions_number=args.nodes
-                                 ))).setup()
 
-        nodes.append(node_cifar100)
+def load_models(dir: str, names: list[str]) -> list[CNN]:
+    nodes = []
+    for name in names:
+        path = f"{dir}/{name}"
+        if not os.path.isfile(path):
+            print(f"File {path} was not found (skipped)")
+            continue
+        node = CNN(num_classes=10)
+        node.load_state_dict(torch.load(path, weights_only=True))
+        nodes.append(node)
+    return nodes
 
-        print(f"Training CIFAR100 - {node_cifar100.get_name()}")
-        node_cifar100.train(1, args.dev_batches)
-        node_cifar100.test(args.epochs, args.dev_batches)
 
-    nodes = [node.get_model().cnn for node in nodes]
+@timer
+def run(args: Namespace):
+    pl.seed_everything(args.seed, workers=True)
+    exp_name = generate_model_run_name()
+    os.listdir()
 
-    server = Node("server",
-                  exp_name,
-                  ServerLitCNNCifar100(
-                      CNN(num_classes=100),
-                      distillation_phase=False,
-                      ensemble=nodes,
-                  ),
-                  CIFAR100Dataset(
-                      batch_size=512,
-                      partition=BalancedFraction(percent=0.1)),
-                  ).setup()
+    # Training
+    print("🚀 Starting training")
+    # ens = training_phase(args, name=exp_name, save=True)
+    ens = load_models("./models", os.listdir("./models"))
+    print(ens)
 
-    print("\N{Flexed Biceps} Pre-Training server")
-    server.train(1, args.dev_batches)  # TODO change 1 -> 10
+    # Distillation
+    server = ServerNode("server",
+                        exp_name,
+                        ServerLitCNNCifar100(
+                            CNN(num_classes=10),
+                            distillation_phase=False,
+                            ensemble=ens,
+                        ),
+                        CIFAR100Dataset(
+                            batch_size=16,
+                            partition=BalancedFraction(percent=0.4)),
+                        num_workers=args.workers
+                        ).setup()
 
     print("🧫 Starting distillation")
     server.get_model().set_distillation_phase(True)
-    server.train(1, None)
-    server.test(1, None)
+    server.train(args.rounds, dev_runs=None, skip_val=False)
+    # server.test(1, None)
+    return
