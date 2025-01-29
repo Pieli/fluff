@@ -59,17 +59,20 @@ class Node:
 
         return self
 
-    def train(self, epochs: int, dev_runs: Union[bool | int] = False) -> None:
+    def train(self, epochs: int, dev_runs: Union[bool | int] = False, skip_val=False) -> None:
         trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs,
                              logger=self._logger, deterministic=True)
 
+        val = self.val_loader if not skip_val else None
+
         trainer.fit(model=self._model,
                     train_dataloaders=self.train_loader,
-                    val_dataloaders=self.val_loader)
+                    val_dataloaders=val)
 
     def test(self, epochs: int, dev_runs=False) -> None:
-        trainer = pl.Trainer(
-            max_epochs=epochs, fast_dev_run=dev_runs, deterministic=True)
+        trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs,
+                             logger=self._logger, deterministic=True)
+
         trainer.test(model=self._model, dataloaders=self.test_loader)
 
     def get_model(self) -> pl.LightningModule:
