@@ -53,7 +53,7 @@ class LitCNN(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
 
-        self._recorded_statistics += y
+        self._recorded_statistics += torch.bincount(y, minlength=10).cpu()
 
         loss = self.criterion(y_hat, y)
         self.train_acc(y_hat, y)
@@ -94,7 +94,7 @@ class ServerLitCNNCifar100(pl.LightningModule):
         self.ensemble = nn.ModuleList(ensemble)
         self.criterion = nn.CrossEntropyLoss()
         self._distillation_phase = distillation_phase
-        self._count_stats
+        self._count_stats = None
 
         self.train_acc = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=10)
@@ -119,7 +119,8 @@ class ServerLitCNNCifar100(pl.LightningModule):
             batch_logits.append(result)
 
         ens_logits = utils.logits_ensemble_eq_3(batch_logits,
-                                                self._count_stats,
+                                                tuple(stat.cuda() for stat in
+                                                      self._count_stats),
                                                 10,
                                                 len(self.ensemble))
 
@@ -168,4 +169,5 @@ class ServerLitCNNCifar100(pl.LightningModule):
         return self
 
     def set_count_statistics(self, counts: list[torch.tensor]):
-        self._count_stats
+        self._count_stats = counts
+        return self

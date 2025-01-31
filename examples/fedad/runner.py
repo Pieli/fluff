@@ -1,3 +1,4 @@
+import json
 import torch
 from torch import nn
 import lightning as pl
@@ -12,8 +13,11 @@ sys.path.append('../..')
 
 from fluff import Node
 from fluff.utils import timer
+from fluff.aggregator import FedAvg
 from fluff.datasets.cifar10 import CIFAR10Dataset
 from fluff.datasets.partitions import DirichletMap, NullMap, BalancedFraction
+
+from typing import cast
 
 
 import utils
@@ -87,7 +91,8 @@ def generate_model_run_name() -> str:
     return f"Fedad_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}"
 
 
-def training_phase(args: Namespace, name: str, save=False) -> list[nn.Module]:
+def training_phase(args: Namespace, name: str, save=False) -> tuple[list[nn.Module], list[torch.Tensor]]:
+    node_stats = {}
     nodes: list[Node] = []
     for num in range(args.nodes):
         node_cifar10 = Node(f"node-{num}",
@@ -111,17 +116,38 @@ def training_phase(args: Namespace, name: str, save=False) -> list[nn.Module]:
         node_cifar10.test(args.epochs, args.dev_batches)
 
         nodes.append(node_cifar10)
+        node_stats[
+            node_cifar10.get_name()] = node_cifar10.get_model().get_statistics().tolist()
 
     if save:
+        os.makedirs(f"./models/{name}")
         for node in nodes:
             print(f"Saving model ({node.get_name()}) ...")
             torch.save(node.get_model().cnn.state_dict(),
-                       f"./models/{node.get_name()}")
+                       f"./models/{name}/{node.get_name()}")
 
-    return [node.get_model().cnn for node in nodes]
+        with open(f"./models/{name}/statistics", "w") as f:
+            json.dump(node_stats, f)
+
+    stats = [node.get_model().get_statistics().unsqueeze(dim=1)
+             for node in nodes]
+    return [node.get_model().cnn for node in nodes], stats
 
 
-def load_models(dir: str, names: list[str]) -> list[CNN]:
+def load_stats(path: str) -> list[torch.Tensor]:
+    assert os.path.isfile(path)
+    with open(path, "r") as f:
+        result = json.load(f)
+
+    return list(torch.tensor(elem).unsqueeze(dim=1) for elem in result.values())
+
+
+def load_models(dir: str) -> tuple[list[nn.Module], list[torch.Tensor]]:
+    names = os.listdir(dir)
+
+    if "statistics" in names:
+        names.remove("statistics")
+
     nodes = []
     for name in names:
         path = f"{dir}/{name}"
@@ -130,38 +156,41 @@ def load_models(dir: str, names: list[str]) -> list[CNN]:
             continue
         node = CNN(num_classes=10)
         node.load_state_dict(torch.load(path, weights_only=True))
-        nodes.append(node)
-    return nodes
+        nodes.append(cast(nn.Module, node))
+    return nodes, load_stats(f"{dir}/statistics")
 
 
 @timer
 def run(args: Namespace):
     pl.seed_everything(args.seed, workers=True)
     exp_name = generate_model_run_name()
-    os.listdir()
 
     # Training
     print("🚀 Starting training")
-    # ens = training_phase(args, name=exp_name, save=True)
-    ens = load_models("./models", os.listdir("./models"))
+    # ens, stats = training_phase(args, name="five_nodes", save=True)
+    ens, stats = load_models("./models/three_nodes")
     print(ens)
+
+    aggregator = FedAvg()
+    s_model = CNN(num_classes=10)
+    s_model.load_state_dict(aggregator.run(ens))
 
     # Distillation
     server = ServerNode("server",
                         exp_name,
                         ServerLitCNNCifar100(
-                            CNN(num_classes=10),
+                            s_model,
                             distillation_phase=False,
                             ensemble=ens,
                         ),
                         CIFAR100Dataset(
-                            batch_size=512,
+                            batch_size=128,
                             partition=BalancedFraction(percent=0.8)),
                         num_workers=args.workers
                         ).setup()
 
     print("🧫 Starting distillation")
-    server.get_model().set_distillation_phase(True)
+    server.get_model().set_distillation_phase(True).set_count_statistics(stats)
     server.train(args.rounds, dev_runs=None, skip_val=False)
     # server.test(1, None)
     return
