@@ -69,3 +69,9 @@ class CIFAR10Dataset(NebulaDataset):
             download=True,
             transform=apply_transforms,
         )
+
+    def plot(self):
+        self.partition.plot_all_data_distribution(
+            self.train_set, self.partition_map)
+        self.partition.plot_data_distribution(
+            self.train_set, self.partition_map)

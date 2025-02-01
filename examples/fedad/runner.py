@@ -17,12 +17,13 @@ from fluff.aggregator import FedAvg
 from fluff.datasets.cifar10 import CIFAR10Dataset
 from fluff.datasets.partitions import DirichletMap, NullMap, BalancedFraction
 
-from typing import cast
+from typing import cast, Callable
 
 
 import utils
 from datasets import CIFAR100Dataset
 from models import LitCNN, ServerLitCNNCifar100, CNN
+from resnet import ResNet_cifar
 
 
 class ServerNode(Node):
@@ -97,8 +98,14 @@ def training_phase(args: Namespace, name: str, save=False) -> tuple[list[nn.Modu
     for num in range(args.nodes):
         node_cifar10 = Node(f"node-{num}",
                             name,
-                            LitCNN(CNN(num_classes=10),
-                                   num_classes=10),
+                            LitCNN(
+                            ResNet_cifar(
+                                resnet_size=20,
+                                group_norm_num_groups=2,
+                                freeze_bn=False,
+                                freeze_bn_affine=False).train(True),
+                            num_classes=10
+                            ),
                             CIFAR10Dataset(
                                 batch_size=16,
                                 partition=DirichletMap(
@@ -120,7 +127,7 @@ def training_phase(args: Namespace, name: str, save=False) -> tuple[list[nn.Modu
             node_cifar10.get_name()] = node_cifar10.get_model().get_statistics().tolist()
 
     if save:
-        os.makedirs(f"./models/{name}")
+        os.makedirs(f"./models/{name}", exist_ok=True)
         for node in nodes:
             print(f"Saving model ({node.get_name()}) ...")
             torch.save(node.get_model().cnn.state_dict(),
@@ -142,7 +149,7 @@ def load_stats(path: str) -> list[torch.Tensor]:
     return list(torch.tensor(elem).unsqueeze(dim=1) for elem in result.values())
 
 
-def load_models(dir: str) -> tuple[list[nn.Module], list[torch.Tensor]]:
+def load_models(dir: str, model: Callable) -> tuple[list[nn.Module], list[torch.Tensor]]:
     names = os.listdir(dir)
 
     if "statistics" in names:
@@ -154,10 +161,17 @@ def load_models(dir: str) -> tuple[list[nn.Module], list[torch.Tensor]]:
         if not os.path.isfile(path):
             print(f"File {path} was not found (skipped)")
             continue
-        node = CNN(num_classes=10)
+        node = model()
         node.load_state_dict(torch.load(path, weights_only=True))
         nodes.append(cast(nn.Module, node))
     return nodes, load_stats(f"{dir}/statistics")
+
+
+def lam_cnn(): return CNN(num_classes=10)
+
+
+def lam_resnet(): return ResNet_cifar(resnet_size=20, group_norm_num_groups=2,
+                                      freeze_bn=False, freeze_bn_affine=False,).train(True)
 
 
 @timer
@@ -166,13 +180,17 @@ def run(args: Namespace):
     exp_name = generate_model_run_name()
 
     # Training
-    print("🚀 Starting training")
-    # ens, stats = training_phase(args, name="five_nodes", save=True)
-    ens, stats = load_models("./models/three_nodes")
-    print(ens)
+    # ens, stats = training_phase(args, name="five-resnet", save=True)
+    ens, stats = load_models("./models/five-resnet", lam_resnet)
+
+    s_model = lam_resnet()
+
+    for en in ens:
+        en.freeze_bn = True
+        en.freeze_bn_affine = True
+        en.train(False)
 
     aggregator = FedAvg()
-    s_model = CNN(num_classes=10)
     s_model.load_state_dict(aggregator.run(ens))
 
     # Distillation
@@ -184,13 +202,11 @@ def run(args: Namespace):
                             ensemble=ens,
                         ),
                         CIFAR100Dataset(
-                            batch_size=128,
+                            batch_size=args.batch,
                             partition=BalancedFraction(percent=0.8)),
                         num_workers=args.workers
                         ).setup()
 
     print("🧫 Starting distillation")
     server.get_model().set_distillation_phase(True).set_count_statistics(stats)
-    server.train(args.rounds, dev_runs=None, skip_val=False)
-    # server.test(1, None)
-    return
+    server.train(args.rounds, dev_runs=args.dev_batches, skip_val=False)

@@ -2,8 +2,21 @@ import torch
 from typing import Iterable
 
 
-def importance_sampling() -> torch.Tensor:
-    pass
+def alternative_avg(raw_logits: Iterable[torch.Tensor],
+                    raw_statistics: Iterable[torch.Tensor],
+                    num_classes: int,
+                    num_nodes: int,) -> torch.Tensor:
+
+    assert isinstance(raw_logits, (list, tuple))
+    assert isinstance(raw_statistics, (list, tuple))
+    assert len(raw_logits) == len(raw_statistics)
+
+    logits = torch.stack(raw_logits)
+    node_statistics = torch.stack(raw_statistics)
+    weights = node_weights(node_statistics, num_classes,
+                           len(logits)).squeeze(2).unsqueeze(1)
+
+    return torch.sum((logits * weights), dim=0)
 
 
 def logits_ensemble_eq_3(raw_logits: Iterable[torch.Tensor],
@@ -75,7 +88,7 @@ def logits_ensemble(logits: torch.Tensor,
     return (logits * node_weights).sum(dim=0)
 
 
-def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_classes: int) -> (torch.Tensor, torch.Tensor):
+def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_classes: int) -> torch.Tensor:
     r"""
     Computes the average logit for samples for the given label. (\hat{z}^c_k)
 
