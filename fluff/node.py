@@ -3,9 +3,11 @@ from torch.utils import data
 import lightning as pl
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from typing import Union, Optional
+from typing import Union, Optional, Any
 
 from .datasets.dataset import NebulaDataset
+
+from fluff import logger
 
 
 class Node:
@@ -23,9 +25,9 @@ class Node:
         self._num_workers = num_workers
         self._seed = seed
 
-        self._logger = TensorBoardLogger(f"./fluff_logs/{experiement_name}",
-                                         self._name,
-                                         type(self._model).__name__)
+        self._logger = logger.FluffTensorBoardLogger(f"./fluff_logs/{experiement_name}",
+                                                     self._name,
+                                                     type(self._model).__name__)
 
     def setup(self):
         training_dataset = data.Subset(
@@ -59,15 +61,31 @@ class Node:
 
         return self
 
-    def train(self, epochs: int, dev_runs: Union[bool | int] = False, skip_val=False) -> None:
-        trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs,
-                             logger=self._logger, deterministic=True)
+    def train(self, epochs: int,
+              dev_runs: Union[bool | int] = False,
+              skip_val=False,
+              callbacks=None,
+              ckpt_path=None,
+              strat: Any = "auto",
+              ) -> None:
+        trainer = pl.Trainer(max_epochs=epochs,
+                             fast_dev_run=dev_runs,
+                             logger=self._logger,
+                             deterministic=True,
+                             enable_progress_bar=False,
+                             enable_checkpointing=True,
+                             callbacks=callbacks,
+                             strategy=strat,
+                             accelerator="gpu",
+                             devices=1,
+                             )
 
         val = self.val_loader if not skip_val else None
 
         trainer.fit(model=self._model,
                     train_dataloaders=self.train_loader,
-                    val_dataloaders=val)
+                    val_dataloaders=val,
+                    ckpt_path=ckpt_path)
 
     def test(self, epochs: int, dev_runs=False) -> None:
         trainer = pl.Trainer(max_epochs=epochs, fast_dev_run=dev_runs,

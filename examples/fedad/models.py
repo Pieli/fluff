@@ -36,6 +36,9 @@ class LitCNN(pl.LightningModule):
 
         assert isinstance(model, nn.Module)
 
+        self.before_weights = {}
+        self.fit_weights = {}
+
         self.cnn = model
         self.criterion = nn.CrossEntropyLoss()
 
@@ -84,6 +87,16 @@ class LitCNN(pl.LightningModule):
 
     def get_statistics(self) -> torch.tensor:
         return self._recorded_statistics
+
+    def on_train_start(self):
+        print("[----] On train start")
+        import copy
+        self.before_weights = copy.deepcopy(self.cnn.state_dict())
+
+    def on_fit_start(self):
+        print("[----] On fit start")
+        import copy
+        self.fit_weights = copy.deepcopy(self.cnn.state_dict())
 
 
 class ServerLitCNNCifar100(pl.LightningModule):

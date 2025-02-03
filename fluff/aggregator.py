@@ -1,3 +1,4 @@
+import torch
 import copy
 from abc import ABC, abstractmethod
 from typing import List, Any, Dict
@@ -35,10 +36,11 @@ class FedAvg(Aggregator):
         # Create a new model to store the average
         avg_state = copy.deepcopy(m_states[0])
 
-        # Go over each parameter in the model
-        for param_name in avg_state:
-            # Accumulate and average the parameter values across all state_dicts
-            avg_state[param_name] = sum(state[param_name]
-                                        for state in m_states) / len(m_states)
+        with torch.no_grad():
+            # Go over each parameter in the model
+            for param_name in avg_state:
+                # Accumulate and average the parameter values across all state_dicts
+                avg_state[param_name] = sum(state[param_name]
+                                            for state in m_states) / len(m_states)
 
         return avg_state

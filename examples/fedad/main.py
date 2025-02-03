@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 
 import runner
+import fedavg
 
 parser = ArgumentParser()
 
@@ -18,4 +19,5 @@ parser.add_argument("--seed", type=int, default=42)
 
 args = parser.parse_args()
 
-node = runner.run(args)
+# runner.run(args)
+fedavg.run(args)
