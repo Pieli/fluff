@@ -7,6 +7,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
+from typing import Optional
+
 from torch.utils import data
 
 matplotlib.use("Agg")
@@ -14,7 +16,12 @@ plt.switch_backend("Agg")
 
 
 class Partition(ABC):
-    def __init__(self, partition_id: int, partitions_number: int, partition_parameter: float):
+    def __init__(
+        self,
+        partition_id: int,
+        partitions_number: int,
+        partition_parameter: Optional[float],
+    ):
         self._id = partition_id
         self._number = partitions_number
         self._parameter = partition_parameter
@@ -24,7 +31,8 @@ class Partition(ABC):
 
         if partition_id < 0 or partition_id >= partitions_number:
             raise ValueError(
-                f"partition_id {partition_id} is out of range for partitions_number {partitions_number}")
+                f"partition_id {partition_id} is out of range for partitions_number {partitions_number}"
+            )
 
     def get_id(self):
         return self._id
@@ -69,8 +77,7 @@ class Partition(ABC):
             for idx in indices:
                 label = dataset.targets[idx]
                 class_counts[label] += 1
-            logging.info(
-                f"Participant {i + 1} class distribution: {class_counts}")
+            logging.info(f"Participant {i + 1} class distribution: {class_counts}")
             plt.figure()
             plt.bar(range(self.num_classes), class_counts)
             plt.xlabel("Class")
@@ -98,12 +105,13 @@ class Partition(ABC):
             # Normalize the point sizes for this partition
             max_samples_partition = max(class_counts)
             sizes = [
-                (size / max_samples_partition) *
-                (max_point_size - min_point_size) + min_point_size
+                (size / max_samples_partition) * (max_point_size - min_point_size)
+                + min_point_size
                 for size in class_counts
             ]
-            plt.scatter([i] * self.num_classes,
-                        range(self.num_classes), s=sizes, alpha=0.5)
+            plt.scatter(
+                [i] * self.num_classes, range(self.num_classes), s=sizes, alpha=0.5
+            )
 
         plt.xlabel("Participant")
         plt.ylabel("Class")
@@ -161,10 +169,12 @@ class Partition(ABC):
         plt.close()
 
     def _adjust_proportions(self, proportions, indices_per_partition, num_samples):
-        adjusted = np.array([
-            p * (len(indices) < num_samples / self._number)
-            for p, indices in zip(proportions, indices_per_partition, strict=False)
-        ])
+        adjusted = np.array(
+            [
+                p * (len(indices) < num_samples / self._number)
+                for p, indices in zip(proportions, indices_per_partition, strict=False)
+            ]
+        )
         return adjusted / adjusted.sum()
 
     def _calculate_class_distribution(self, indices_per_partition, y_data):
