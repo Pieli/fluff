@@ -27,7 +27,7 @@ class FedAvg(Aggregator):
         super().__init__()
 
     def run(self, models: List[pl.LightningModule]) -> Dict[str, Any]:
-        m_states = [m.state_dict() for m in models]
+        m_states = [copy.deepcopy(m.state_dict()) for m in models]
 
         # Check that the list is not empty
         if not m_states:
@@ -40,7 +40,8 @@ class FedAvg(Aggregator):
             # Go over each parameter in the model
             for param_name in avg_state:
                 # Accumulate and average the parameter values across all state_dicts
-                avg_state[param_name] = sum(state[param_name]
-                                            for state in m_states) / len(m_states)
+                avg_state[param_name] = sum(
+                    state[param_name] for state in m_states
+                ) / len(m_states)
 
         return avg_state
