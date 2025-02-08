@@ -20,5 +20,5 @@ parser.add_argument("--seed", type=int, default=42)
 
 args = parser.parse_args()
 
-# runner.run(args)
-fedavg.run(args)
+runner.run(args)
+# fedavg.run(args)

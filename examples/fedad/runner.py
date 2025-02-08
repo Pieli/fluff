@@ -114,17 +114,26 @@ def training_phase(
             ),
             CIFAR10Dataset(
                 batch_size=16,
-                partition=DirichletMap(partition_id=num, partitions_number=args.nodes),
+                partition=DirichletMap(
+                    partition_id=num,
+                    partitions_number=args.nodes,
+                    alpha=args.alpha,
+                ),
             ),
             num_workers=args.workers,
+            hp=args,
         ).setup()
 
         # start training cifar10
         print(f"Training CIFAR10 - {node_cifar10.get_name()}")
 
         # 200 epochs for CIFAR10
-        node_cifar10.train(args.epochs, args.dev_batches)
-        node_cifar10.test(args.epochs, args.dev_batches)
+        node_cifar10.train(
+            args.epochs,
+            args.dev_batches,
+            skip_val=False,
+            skip_test=False,
+        )
 
         nodes.append(node_cifar10)
         node_stats[node_cifar10.get_name()] = (
@@ -194,8 +203,11 @@ def run(args: Namespace):
     exp_name = generate_model_run_name()
 
     # Training
+    print(args)
     ens, stats = training_phase(args, name="five-resnet-alpha-0_1", save=True)
     # ens, stats = load_models("./models/five-resnet-alpha-0_1", lam_resnet)
+
+    return
 
     s_model = lam_resnet()
 
