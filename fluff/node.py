@@ -9,6 +9,8 @@ from .datasets.dataset import NebulaDataset
 
 from fluff import logger
 
+from argparse import Namespace
+
 
 class Node:
     def __init__(
@@ -19,6 +21,7 @@ class Node:
         dataset: NebulaDataset,
         num_workers: int = 2,
         seed: Optional[int] = None,
+        hp: Optional[Namespace] = None,
     ) -> None:
 
         self._name = name
@@ -27,9 +30,16 @@ class Node:
         self._num_workers = num_workers
         self._seed = seed
 
+        self._test_trainer: Optional[pl.Trainer] = None
+
         self._logger = logger.TensorBoardLogger(
-            f"./fluff_logs/{experiement_name}", self._name, type(self._model).__name__
+            f"./fluff_logs/{experiement_name}",
+            self._name,
+            type(self._model).__name__,
         )
+
+        if hp:
+            self._logger.log_hyperparams(params=hp)
 
     def setup(self):
         training_dataset = data.Subset(
@@ -76,6 +86,7 @@ class Node:
         epochs: int,
         dev_runs: Union[bool | int] = False,
         skip_val=False,
+        skip_test=False,
         callbacks=None,
         ckpt_path=None,
         strat: Any = "auto",
@@ -102,15 +113,18 @@ class Node:
             ckpt_path=ckpt_path,
         )
 
-    def test(self, epochs: int, dev_runs=False) -> None:
-        trainer = pl.Trainer(
-            max_epochs=epochs,
-            fast_dev_run=dev_runs,
-            logger=self._logger,
-            deterministic=True,
-        )
+        if not skip_test:
+            trainer.test(model=self._model, dataloaders=self.test_loader)
 
-        trainer.test(model=self._model, dataloaders=self.test_loader)
+    def test(self, keep_trainer=True) -> None:
+        if not self._test_trainer:
+            self._test_trainer = pl.Trainer(
+                max_epochs=10,
+                logger=self._logger,
+                deterministic=True,
+            )
+
+        self._test_trainer.test(model=self._model, dataloaders=self.test_loader)
 
     def get_model(self) -> pl.LightningModule:
         return self._model
