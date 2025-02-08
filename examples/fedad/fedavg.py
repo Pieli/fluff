@@ -45,7 +45,7 @@ def lam_resnet():
 
 
 def generate_model_run_name() -> str:
-    return f"FedAvg_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}"
+    return f"FedAvg_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
 
 
 class MyStrat(pl.pytorch.strategies.SingleDeviceStrategy):

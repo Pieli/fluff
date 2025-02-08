@@ -91,7 +91,7 @@ def persist_model(model: nn.Module, dir: str):
 
 
 def generate_model_run_name() -> str:
-    return f"Fedad_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}"
+    return f"Fedad_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
 
 
 def training_phase(
@@ -204,7 +204,7 @@ def run(args: Namespace):
 
     # Training
     print(args)
-    ens, stats = training_phase(args, name="five-resnet-alpha-0_1", save=True)
+    ens, stats = training_phase(args, name="five-resnet-alpha-0_5", save=True)
     # ens, stats = load_models("./models/five-resnet-alpha-0_1", lam_resnet)
 
     return
