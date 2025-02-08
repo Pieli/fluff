@@ -138,11 +138,12 @@ class Node:
         model_lines[0] = model_lines[0].lstrip()
 
         l4 = " " * 4
+        model_lines_str = "\n".join(model_lines)
         return "".join(
             (
                 "Node(\n",
                 f"{l4}(name): {repr(self._name)}\n",
-                f"{l4}(model): {"\n".join(model_lines)}\n",
+                f"{l4}(model): {model_lines_str}\n",
                 f"{l4}(dataset): {repr(self._dataset)}\n",
                 f"{l4}(num_workers): {self._num_workers}\n)",
             )
