@@ -9,7 +9,8 @@ from torch.utils import data
 
 import os
 import sys
-sys.path.append('../..')
+
+sys.path.append("../..")
 
 from fluff import Node
 from fluff.utils import timer
@@ -27,61 +28,62 @@ from resnet import ResNet_cifar
 
 
 class ServerNode(Node):
-    def __init__(self,
-                 name: str,
-                 experiement_name: str,
-                 model: pl.LightningModule,
-                 dataset,
-                 num_workers: int = 2,
-                 seed=None) -> None:
-        super().__init__(name,
-                         experiement_name,
-                         model,
-                         dataset,
-                         num_workers,
-                         seed)
+    def __init__(
+        self,
+        name: str,
+        experiement_name: str,
+        model: pl.LightningModule,
+        dataset,
+        num_workers: int = 2,
+        seed=None,
+    ) -> None:
+        super().__init__(name, experiement_name, model, dataset, num_workers, seed)
 
     def setup(self):
-        cif_10 = CIFAR10Dataset(BalancedFraction(percent=0.9),
-                                batch_size=self._dataset.get_batch_size())
+        cif_10 = CIFAR10Dataset(
+            BalancedFraction(percent=0.9), batch_size=self._dataset.get_batch_size()
+        )
 
         training_dataset = data.Subset(
-            self._dataset.train_set, self._dataset.train_indices_map)
+            self._dataset.train_set,
+            self._dataset.train_indices_map,
+        )
         test_dataset = self._dataset.test_set
 
         train_set = training_dataset
         _, valid_set = data.random_split(
-            cif_10.train_set,
-            (0.8, 0.2),
-            generator=torch.Generator().manual_seed(42)
+            cif_10.train_set, (0.8, 0.2), generator=torch.Generator().manual_seed(42)
         )
         test_set = cif_10.test_set
 
         generator = torch.Generator().manual_seed(self._seed) if self._seed else None
-        self.train_loader = data.DataLoader(train_set,
-                                            batch_size=self._dataset.get_batch_size(),
-                                            shuffle=True,
-                                            num_workers=self._num_workers,
-                                            generator=generator)
+        self.train_loader = data.DataLoader(
+            train_set,
+            batch_size=self._dataset.get_batch_size(),
+            shuffle=True,
+            num_workers=self._num_workers,
+            generator=generator,
+        )
 
-        self.val_loader = data.DataLoader(valid_set,
-                                          batch_size=self._dataset.get_batch_size(),
-                                          shuffle=False,
-                                          num_workers=self._num_workers)
+        self.val_loader = data.DataLoader(
+            valid_set,
+            batch_size=self._dataset.get_batch_size(),
+            shuffle=False,
+            num_workers=self._num_workers,
+        )
 
-        self.test_loader = data.DataLoader(test_dataset,
-                                           batch_size=self._dataset.get_batch_size(),
-                                           shuffle=False,
-                                           num_workers=self._num_workers)
+        self.test_loader = data.DataLoader(
+            test_dataset,
+            batch_size=self._dataset.get_batch_size(),
+            shuffle=False,
+            num_workers=self._num_workers,
+        )
         return self
 
 
 def persist_configuration(args: Namespace, file_name: str):
     with open(file_name, "w") as f:
-        f.writelines(
-            f"{name}\t{value}\n"
-            for (name, value) in args._get_kwargs()
-        )
+        f.writelines(f"{name}\t{value}\n" for (name, value) in args._get_kwargs())
 
 
 def persist_model(model: nn.Module, dir: str):
@@ -92,28 +94,30 @@ def generate_model_run_name() -> str:
     return f"Fedad_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}"
 
 
-def training_phase(args: Namespace, name: str, save=False) -> tuple[list[nn.Module], list[torch.Tensor]]:
+def training_phase(
+    args: Namespace, name: str, save=False
+) -> tuple[list[nn.Module], list[torch.Tensor]]:
     node_stats = {}
     nodes: list[Node] = []
     for num in range(args.nodes):
-        node_cifar10 = Node(f"node-{num}",
-                            name,
-                            LitCNN(
-                            ResNet_cifar(
-                                resnet_size=20,
-                                group_norm_num_groups=2,
-                                freeze_bn=False,
-                                freeze_bn_affine=False).train(True),
-                            num_classes=10
-                            ),
-                            CIFAR10Dataset(
-                                batch_size=16,
-                                partition=DirichletMap(
-                                    partition_id=num,
-                                    partitions_number=args.nodes
-                                )),
-                            num_workers=args.workers
-                            ).setup()
+        node_cifar10 = Node(
+            f"node-{num}",
+            name,
+            LitCNN(
+                ResNet_cifar(
+                    resnet_size=20,
+                    group_norm_num_groups=2,
+                    freeze_bn=False,
+                    freeze_bn_affine=False,
+                ).train(True),
+                num_classes=10,
+            ),
+            CIFAR10Dataset(
+                batch_size=16,
+                partition=DirichletMap(partition_id=num, partitions_number=args.nodes),
+            ),
+            num_workers=args.workers,
+        ).setup()
 
         # start training cifar10
         print(f"Training CIFAR10 - {node_cifar10.get_name()}")
@@ -123,21 +127,22 @@ def training_phase(args: Namespace, name: str, save=False) -> tuple[list[nn.Modu
         node_cifar10.test(args.epochs, args.dev_batches)
 
         nodes.append(node_cifar10)
-        node_stats[
-            node_cifar10.get_name()] = node_cifar10.get_model().get_statistics().tolist()
+        node_stats[node_cifar10.get_name()] = (
+            node_cifar10.get_model().get_statistics().tolist()
+        )
 
     if save:
         os.makedirs(f"./models/{name}", exist_ok=True)
         for node in nodes:
             print(f"Saving model ({node.get_name()}) ...")
-            torch.save(node.get_model().cnn.state_dict(),
-                       f"./models/{name}/{node.get_name()}")
+            torch.save(
+                node.get_model().cnn.state_dict(), f"./models/{name}/{node.get_name()}"
+            )
 
         with open(f"./models/{name}/statistics", "w") as f:
             json.dump(node_stats, f)
 
-    stats = [node.get_model().get_statistics().unsqueeze(dim=1)
-             for node in nodes]
+    stats = [node.get_model().get_statistics().unsqueeze(dim=1) for node in nodes]
     return [node.get_model().cnn for node in nodes], stats
 
 
@@ -149,7 +154,10 @@ def load_stats(path: str) -> list[torch.Tensor]:
     return list(torch.tensor(elem).unsqueeze(dim=1) for elem in result.values())
 
 
-def load_models(dir: str, model: Callable) -> tuple[list[nn.Module], list[torch.Tensor]]:
+def load_models(
+    dir: str,
+    model: Callable,
+) -> tuple[list[nn.Module], list[torch.Tensor]]:
     names = os.listdir(dir)
 
     if "statistics" in names:
@@ -167,11 +175,17 @@ def load_models(dir: str, model: Callable) -> tuple[list[nn.Module], list[torch.
     return nodes, load_stats(f"{dir}/statistics")
 
 
-def lam_cnn(): return CNN(num_classes=10)
+def lam_cnn():
+    return CNN(num_classes=10)
 
 
-def lam_resnet(): return ResNet_cifar(resnet_size=20, group_norm_num_groups=2,
-                                      freeze_bn=False, freeze_bn_affine=False,).train(True)
+def lam_resnet():
+    return ResNet_cifar(
+        resnet_size=20,
+        group_norm_num_groups=2,
+        freeze_bn=False,
+        freeze_bn_affine=False,
+    ).train(True)
 
 
 @timer
@@ -180,8 +194,8 @@ def run(args: Namespace):
     exp_name = generate_model_run_name()
 
     # Training
-    # ens, stats = training_phase(args, name="five-resnet", save=True)
-    ens, stats = load_models("./models/five-resnet", lam_resnet)
+    ens, stats = training_phase(args, name="five-resnet-alpha-0_1", save=True)
+    # ens, stats = load_models("./models/five-resnet-alpha-0_1", lam_resnet)
 
     s_model = lam_resnet()
 
@@ -194,18 +208,17 @@ def run(args: Namespace):
     s_model.load_state_dict(aggregator.run(ens))
 
     # Distillation
-    server = ServerNode("server",
-                        exp_name,
-                        ServerLitCNNCifar100(
-                            s_model,
-                            distillation_phase=False,
-                            ensemble=ens,
-                        ),
-                        CIFAR100Dataset(
-                            batch_size=args.batch,
-                            partition=BalancedFraction(percent=0.8)),
-                        num_workers=args.workers
-                        ).setup()
+    server = ServerNode(
+        "server",
+        exp_name,
+        ServerLitCNNCifar100(
+            s_model,
+            distillation_phase=False,
+            ensemble=ens,
+        ),
+        CIFAR100Dataset(batch_size=args.batch, partition=BalancedFraction(percent=0.8)),
+        num_workers=args.workers,
+    ).setup()
 
     print("🧫 Starting distillation")
     server.get_model().set_distillation_phase(True).set_count_statistics(stats)
