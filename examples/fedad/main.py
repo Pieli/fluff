@@ -11,6 +11,7 @@ parser.add_argument("-b", "--batch", type=int, default=128)
 parser.add_argument("-t", "--rounds", type=int, default=10)
 
 parser.add_argument("--alpha", type=float, default=0.5)
+parser.add_argument("--distill", type=str, default="kl")
 
 parser.add_argument("-w", "--workers", type=int, default=4)
 

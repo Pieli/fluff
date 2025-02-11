@@ -175,7 +175,8 @@ class Partition(ABC):
                 for p, indices in zip(proportions, indices_per_partition, strict=False)
             ]
         )
-        return adjusted / adjusted.sum()
+        sum = adjusted.sum()
+        return adjusted / (sum if sum > 0 else 1)
 
     def _calculate_class_distribution(self, indices_per_partition, y_data):
         distribution = defaultdict(lambda: np.zeros(self._number))

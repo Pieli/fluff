@@ -118,16 +118,24 @@ class ServerLitCNNCifar100(pl.LightningModule):
         self,
         model: nn.Module,
         ensemble: list[nn.Module],
-        distillation_phase: bool = False,
+        distillation: str,
     ):
         super().__init__()
 
         assert isinstance(model, nn.Module)
+        assert distillation in ("kl", "l2")
 
         self.cnn = model
         self.ensemble = nn.ModuleList(ensemble)
         self.criterion = nn.CrossEntropyLoss()
-        self._distillation_phase = distillation_phase
+
+        if distillation == "kl":
+            self.dist_criterion = self.kl_divergence
+        elif distillation == "l2":
+            self.dist_criterion = self.l2_distillation
+        else:
+            raise Exception("Some input is wrong")
+
         self._count_stats: Sequence[torch.Tensor] = tuple(torch.empty(1))
 
         self.train_acc = torchmetrics.classification.Accuracy(
@@ -140,7 +148,10 @@ class ServerLitCNNCifar100(pl.LightningModule):
             task="multiclass", num_classes=10
         )
 
-        self.train_div = torchmetrics.KLDivergence(log_prob=True, reduction="mean")
+        self.train_div = torchmetrics.KLDivergence(
+            log_prob=False,
+            reduction="mean",
+        )
 
     def forward(self, x):
         return self.cnn(x)
@@ -160,32 +171,46 @@ class ServerLitCNNCifar100(pl.LightningModule):
             batch_logits, self._count_stats, 10, len(self.ensemble)
         )
 
-        # loss = self.kl_divergence(y_hat, ens_logits)
-        loss = self.l2_distillation(y_hat, ens_logits)
+        loss = self.dist_criterion(y_hat, ens_logits, T=3)
 
-        self.train_div(y_hat, ens_logits)
+        self.train_div(
+            torch.softmax(y_hat, dim=1),
+            torch.softmax(ens_logits, dim=1),
+        )
         self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_loss", loss, on_step=False, on_epoch=True)
         return loss
 
-    # TODO test this
     def l2_distillation(
-        self, server_log: torch.Tensor, ensemble_log: torch.Tensor
+        self,
+        server_log: torch.Tensor,
+        ensemble_log: torch.Tensor,
+        T: int = 3,
     ) -> torch.Tensor:
-        return F.mse_loss(
-            torch.sigmoid(server_log), torch.sigmoid(ensemble_log), reduction="sum"
-        ) * (1 / server_log.size(1))
 
-    def kl_divergence(self, p, q):
+        return F.mse_loss(
+            torch.sigmoid(server_log),
+            torch.sigmoid(ensemble_log),
+            reduction="mean",
+        )
+
+    def kl_divergence(
+        self,
+        p: torch.Tensor,
+        q: torch.Tensor,
+        T: int = 3,
+    ) -> torch.Tensor:
+
         return (
             F.kl_div(
-                F.log_softmax(p / 3, dim=1),
-                F.softmax(q / 3, dim=1),
+                F.log_softmax(p / T, dim=1),
+                F.softmax(q / T, dim=1),
                 reduction="batchmean",
             )
-            * 9
+            * T
+            * T
         )
 
     def validation_step(self, batch, batch_idx):
@@ -208,11 +233,6 @@ class ServerLitCNNCifar100(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.cnn.parameters(), lr=1e-3)
-
-    def set_distillation_phase(self, distillation: bool):
-        assert isinstance(distillation, bool)
-        self._distillation_phase = distillation
-        return self
 
     def set_count_statistics(self, counts: list[torch.Tensor]):
         self._count_stats = tuple(stat.cuda() for stat in counts)

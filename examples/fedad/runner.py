@@ -36,8 +36,9 @@ class ServerNode(Node):
         dataset,
         num_workers: int = 2,
         seed=None,
+        hp=None,
     ) -> None:
-        super().__init__(name, experiement_name, model, dataset, num_workers, seed)
+        super().__init__(name, experiement_name, model, dataset, num_workers, seed, hp)
 
     def setup(self):
         cif_10 = CIFAR10Dataset(
@@ -48,7 +49,6 @@ class ServerNode(Node):
             self._dataset.train_set,
             self._dataset.train_indices_map,
         )
-        test_dataset = self._dataset.test_set
 
         train_set = training_dataset
         _, valid_set = data.random_split(
@@ -73,7 +73,7 @@ class ServerNode(Node):
         )
 
         self.test_loader = data.DataLoader(
-            test_dataset,
+            test_set,
             batch_size=self._dataset.get_batch_size(),
             shuffle=False,
             num_workers=self._num_workers,
@@ -204,9 +204,8 @@ def run(args: Namespace):
 
     # Training
     print(args)
-    ens, stats = training_phase(args, name="five-resnet-alpha-0_5", save=True)
+    ens, stats = training_phase(args, name="five-resnet-alpha-0_01", save=True)
     # ens, stats = load_models("./models/five-resnet-alpha-0_1", lam_resnet)
-
     return
 
     s_model = lam_resnet()
@@ -216,8 +215,8 @@ def run(args: Namespace):
         en.freeze_bn_affine = True
         en.train(False)
 
-    aggregator = FedAvg()
-    s_model.load_state_dict(aggregator.run(ens))
+    # aggregator = FedAvg()
+    # s_model.load_state_dict(aggregator.run(ens))
 
     # Distillation
     server = ServerNode(
@@ -225,13 +224,20 @@ def run(args: Namespace):
         exp_name,
         ServerLitCNNCifar100(
             s_model,
-            distillation_phase=False,
             ensemble=ens,
+            distillation=args.distill,
         ),
         CIFAR100Dataset(batch_size=args.batch, partition=BalancedFraction(percent=0.8)),
         num_workers=args.workers,
+        hp=args,
     ).setup()
 
     print("🧫 Starting distillation")
-    server.get_model().set_distillation_phase(True).set_count_statistics(stats)
-    server.train(args.rounds, dev_runs=args.dev_batches, skip_val=False)
+    server.get_model().set_count_statistics(stats)
+
+    server.train(
+        args.rounds,
+        dev_runs=args.dev_batches,
+        skip_val=False,
+        skip_test=False,
+    )
