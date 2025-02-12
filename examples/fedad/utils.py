@@ -1,5 +1,63 @@
+import numpy as np
 import torch
-from typing import Iterable
+from typing import Iterable, cast
+
+
+def sample_with_top(
+    weights: torch.Tensor, num_out_samples: int, top: int = 2
+) -> list[list[int]]:
+    """
+    Args:
+        weights (torch.Tensor):
+            3D tensor of shape (num_nodes, num_classes, 1),
+            containing the node weights for each class.
+
+    Return:
+    """
+
+    num_nodes, num_classes, _ = weights.size()
+
+    assert isinstance(top, int)
+    assert isinstance(num_out_samples, int)
+    assert isinstance(weights, torch.Tensor)
+    assert weights.size()[-1] == 1
+    assert top < num_nodes
+    assert num_out_samples + top <= num_nodes
+
+    sampled: list[list[int]] = []
+    for c in range(num_classes):
+        # add top places caused sampled with prob 1
+        top_places = weights.sort(dim=0, descending=True).indices[:top, c, :].squeeze(1)
+        sampled.append(top_places.tolist())
+
+        # create candidates
+        pool = [cand for cand in range(weights.size(0)) if cand not in top_places]
+
+        # filter out top places
+        pool_probs_raw = [
+            prob
+            for ind, prob in enumerate(weights[:, c, :].squeeze().tolist())
+            if ind not in top_places
+        ]
+
+        # adjust to sum up to 1
+        probs_sum = sum(pool_probs_raw)
+        p = [prob / probs_sum for prob in pool_probs_raw]
+
+        # sample missing values
+        sampled[c].extend(
+            cast(
+                list[int],
+                np.random.choice(
+                    pool,
+                    num_out_samples,
+                    replace=False,
+                    p=p,
+                ).tolist(),
+            )
+        )
+
+    return sampled
 
 
 def alternative_avg(

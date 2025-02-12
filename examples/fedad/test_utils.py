@@ -99,7 +99,7 @@ def test_intersection_simple():
 
 def test_intersection_loss_no_outliers():
     inter = torch.ones(1, 3, 3)
-    att = torch.ones(1, 3, 3) * 6 
+    att = torch.ones(1, 3, 3) * 6
 
     result = utils.loss_intersection(inter, att, num_classes=1)
 
@@ -109,11 +109,11 @@ def test_intersection_loss_no_outliers():
 
 def test_intersection_loss_half_inliers_simple():
     inter = torch.zeros(1, 2, 2)
-    inter[:, 1, :] = 1 
+    inter[:, 1, :] = 1
     print(inter)
 
     att = torch.zeros(1, 2, 2)
-    att[:, 1, 1] = 6 
+    att[:, 1, 1] = 6
     print(att)
 
     result = utils.loss_intersection(inter, att, num_classes=1)
@@ -143,7 +143,7 @@ def test_intersection_loss_half_inliers():
     print(inter)
 
     att = torch.zeros(num_class, 2, 2)
-    att[:, 1, 1] = 6 
+    att[:, 1, 1] = 6
     print(att)
 
     result = utils.loss_intersection(inter, att, num_classes=num_class)
@@ -153,7 +153,7 @@ def test_intersection_loss_half_inliers():
 
 # result would be -0 (error)
 def test_intersection_loss_all_outliers():
-    num_class = 1 
+    num_class = 1
     inter = torch.zeros(num_class, 2, 2)
     inter[:, 0, :] = 0.5
 
@@ -166,7 +166,7 @@ def test_intersection_loss_all_outliers():
 
 
 def test_union_loss_no_outliers():
-    num_class = 1 
+    num_class = 1
     union = torch.ones(num_class, 3, 3) * 6
     att = torch.ones(num_class, 3, 3)
     result = utils.loss_union(union, att, num_classes=num_class)
@@ -175,9 +175,9 @@ def test_union_loss_no_outliers():
 
 
 def test_union_loss_half_inliers():
-    num_class = 1 
+    num_class = 1
     union = torch.zeros(num_class, 2, 2)
-    union[:, :, 1] = 6 
+    union[:, :, 1] = 6
 
     att = torch.zeros(num_class, 2, 2)
     att[:, 1, :] = 0.9
@@ -188,7 +188,7 @@ def test_union_loss_half_inliers():
 
 
 def test_union_loss_all_outliers():
-    num_class = 1 
+    num_class = 1
     union = torch.zeros(num_class, 2, 2)
     union[:, 0, :] = 0.5
 
@@ -201,7 +201,7 @@ def test_union_loss_all_outliers():
 
 
 def test_union_loss_all_outliers_part_2():
-    num_class = 1 
+    num_class = 1
     union = torch.zeros(num_class, 2, 2)
 
     att = torch.zeros(num_class, 2, 2)
@@ -242,6 +242,59 @@ def test_node_weights_all_equal():
     expected = torch.ones(nodes, classes, 1) / nodes
 
     assert torch.allclose(result, expected)
+
+
+def test_sample_with_top_simple():
+    nodes = 3
+    classes = 3
+
+    node_statistics = torch.ones(nodes, classes) + torch.eye(nodes)
+    node_statistics = node_statistics.unsqueeze(2)
+    print(node_statistics.shape)
+
+    weights = utils.node_weights(node_statistics, classes, nodes)
+    samples = utils.sample_with_top(weights, num_out_samples=1, top=2)
+
+    print(samples)
+    for ind, sam in enumerate(samples):
+        assert sam[0] == ind
+        assert len(sam) == 3
+        assert sum(sam) == 3
+
+
+def test_sample_with_top_simple_2():
+    nodes = 6
+    classes = 6
+    num_out = 3
+
+    node_statistics = torch.ones(nodes, classes) + torch.eye(nodes)
+    node_statistics = node_statistics.unsqueeze(2)
+    print(node_statistics.shape)
+
+    weights = utils.node_weights(node_statistics, classes, nodes)
+    samples = utils.sample_with_top(weights, num_out_samples=num_out, top=2)
+
+    print(samples)
+    for ind, sam in enumerate(samples):
+        assert sam[0] == ind
+        assert len(sam) == num_out + 2
+
+
+def test_sample_with_top_simple_3():
+    nodes = 6
+    classes = 6
+    num_out = 3
+
+    node_statistics = torch.ones(nodes, classes, 1)
+    for num in range(nodes):
+        node_statistics[num, :, :] = num
+
+    weights = utils.node_weights(node_statistics, classes, nodes)
+    samples = utils.sample_with_top(weights, num_out_samples=num_out, top=2)
+
+    for ind, sam in enumerate(samples):
+        assert len(sam) == num_out + 2
+        assert 0 not in sam
 
 
 def test_node_weights_all_unequal():
