@@ -17,21 +17,27 @@ def test_masking_values():
 
 def test_union_simple():
     maps = [
-        torch.tensor([
-            [1, 2, 3],
-            [1, 2, 3],
-            [1, 2, 3],
-        ]),
-        torch.tensor([
-            [3, 2, 1],
-            [3, 2, 1],
-            [3, 2, 1],
-        ]),
-        torch.tensor([
-            [2, 2, 2],
-            [2, 2, 2],
-            [2, 2, 2],
-        ]),
+        torch.tensor(
+            [
+                [1, 2, 3],
+                [2, 2, 1],
+                [3, 2, 1],
+            ]
+        ),
+        torch.tensor(
+            [
+                [1, 2, 1],
+                [3, 2, 3],
+                [2, 2, 1],
+            ]
+        ),
+        torch.tensor(
+            [
+                [3, 2, 2],
+                [2, 2, 2],
+                [1, 2, 3],
+            ]
+        ),
     ]
 
     results = utils.union(maps)
@@ -43,21 +49,27 @@ def test_union_simple():
 
 def test_intersection_simple():
     maps = [
-        torch.tensor([
-            [1, 2, 3],
-            [1, 2, 3],
-            [1, 2, 3],
-        ]),
-        torch.tensor([
-            [3, 2, 1],
-            [3, 2, 1],
-            [3, 2, 1],
-        ]),
-        torch.tensor([
-            [2, 2, 2],
-            [2, 2, 2],
-            [2, 2, 2],
-        ]),
+        torch.tensor(
+            [
+                [1, 2, 3],
+                [1, 2, 3],
+                [1, 2, 3],
+            ]
+        ),
+        torch.tensor(
+            [
+                [3, 2, 1],
+                [3, 2, 1],
+                [3, 2, 1],
+            ]
+        ),
+        torch.tensor(
+            [
+                [2, 2, 2],
+                [2, 2, 2],
+                [2, 2, 2],
+            ]
+        ),
     ]
 
     results = utils.intersection(maps)
@@ -152,27 +164,16 @@ def test_node_weights_zero_present():
     nodes = 2
     classes = 4
 
-    node_statistics = torch.tensor([[[1],
-                                     [2],
-                                     [0],
-                                     [0]],
-
-                                    [[4],
-                                     [2],
-                                     [0],
-                                     [0]]])
+    node_statistics = torch.tensor([[[1], [2], [0], [0]], [[4], [2], [0], [0]]])
 
     result = utils.node_weights(node_statistics, classes, nodes)
 
-    expected = torch.tensor([[[0.2000],
-                              [0.5000],
-                              [0.0000],
-                              [0.0000]],
-
-                             [[0.8000],
-                              [0.5000],
-                              [0.0000],
-                              [0.0000]]])
+    expected = torch.tensor(
+        [
+            [[0.2000], [0.5000], [0.0000], [0.0000]],
+            [[0.8000], [0.5000], [0.0000], [0.0000]],
+        ]
+    )
 
     assert torch.isnan(result).sum() == 0
     assert torch.allclose(result, expected)
@@ -195,27 +196,16 @@ def test_node_weights_all_unequal():
     nodes = 2
     classes = 4
 
-    node_statistics = torch.tensor([[[1],
-                                     [2],
-                                     [3],
-                                     [4]],
-
-                                    [[4],
-                                     [3],
-                                     [2],
-                                     [1]]])
+    node_statistics = torch.tensor([[[1], [2], [3], [4]], [[4], [3], [2], [1]]])
 
     result = utils.node_weights(node_statistics, classes, nodes)
 
-    expected = torch.tensor([[[0.2000],
-                              [0.4000],
-                              [0.6000],
-                              [0.8000]],
-
-                             [[0.8000],
-                              [0.6000],
-                              [0.4000],
-                              [0.2000]]])
+    expected = torch.tensor(
+        [
+            [[0.2000], [0.4000], [0.6000], [0.8000]],
+            [[0.8000], [0.6000], [0.4000], [0.2000]],
+        ]
+    )
     print(result)
 
     assert torch.allclose(result, expected)
@@ -225,33 +215,20 @@ def test_logits_ensemble_simple():
     classes = 2
     nodes = 2
 
-    node_weights = torch.tensor([[[1.0],
-                                 [0.5]],
-                                 [[0.0],
-                                  [0.5]]])
+    node_weights = torch.tensor([[[1.0], [0.5]], [[0.0], [0.5]]])
 
-    logits = torch.tensor([[[1, 1],
-                            [2, 2]],
-                           [[3, 3],
-                            [4, 4]]
-                           ])
+    logits = torch.tensor([[[1, 1], [2, 2]], [[3, 3], [4, 4]]])
 
     result = utils.logits_ensemble(logits, node_weights, classes, nodes)
 
-    expected = torch.tensor([[1.0, 1.0],
-                             [3.0, 3.0]])
+    expected = torch.tensor([[1.0, 1.0], [3.0, 3.0]])
 
     assert torch.allclose(result, expected)
 
 
 def test_average_logits_simple():
 
-    logits = torch.tensor([
-        [1, 1, 1],
-        [1, 1, 1],
-        [1, 1, 1],
-        [1, 1, 1]
-    ])
+    logits = torch.tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]])
 
     targets = torch.tensor([0, 1, 2, 2])
 
@@ -264,13 +241,15 @@ def test_average_logits_simple():
 
 def test_average_logits_simple_2():
 
-    logits = torch.tensor([
-        [1.0, 2.0, 3.0, 4.0],
-        [1.5, 2.5, 3.5, 4.5],
-        [2.0, 3.0, 4.0, 5.0],
-        [0.5, 1.5, 2.5, 3.5],
-        [1.0, 1.0, 1.0, 1.0],
-    ])
+    logits = torch.tensor(
+        [
+            [1.0, 2.0, 3.0, 4.0],
+            [1.5, 2.5, 3.5, 4.5],
+            [2.0, 3.0, 4.0, 5.0],
+            [0.5, 1.5, 2.5, 3.5],
+            [1.0, 1.0, 1.0, 1.0],
+        ]
+    )
 
     # Gold labels
     targets = torch.tensor([0, 1, 2, 1, 3])
@@ -279,11 +258,13 @@ def test_average_logits_simple_2():
     num_classes = 4
     avg_l = utils.average_logits_per_class(logits, targets, num_classes)
 
-    answer = torch.tensor([
-        [1.0, 2.0, 3.0, 4.0],
-        [1.0, 2.0, 3.0, 4.0],
-        [2.0, 3.0, 4.0, 5.0],
-        [1.0, 1.0, 1.0, 1.0],
-    ])
+    answer = torch.tensor(
+        [
+            [1.0, 2.0, 3.0, 4.0],
+            [1.0, 2.0, 3.0, 4.0],
+            [2.0, 3.0, 4.0, 5.0],
+            [1.0, 1.0, 1.0, 1.0],
+        ]
+    )
 
     assert torch.allclose(avg_l, answer)
