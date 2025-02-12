@@ -204,9 +204,8 @@ def run(args: Namespace):
 
     # Training
     print(args)
-    ens, stats = training_phase(args, name="five-resnet-alpha-0_01", save=True)
-    # ens, stats = load_models("./models/five-resnet-alpha-0_1", lam_resnet)
-    return
+    # ens, stats = training_phase(args, name="five-resnet-alpha-0_01", save=True)
+    ens, stats = load_models("./models/five-resnet-alpha-0_5", lam_resnet)
 
     s_model = lam_resnet()
 
