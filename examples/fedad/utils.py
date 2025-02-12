@@ -99,7 +99,9 @@ def logits_ensemble(
 
 
 def average_logits_per_class(
-    logits: torch.Tensor, targets: torch.Tensor, num_classes: int
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    num_classes: int,
 ) -> torch.Tensor:
     r"""
     Computes the average logit for samples for the given label. (\hat{z}^c_k)
@@ -157,19 +159,16 @@ def masking(attenion_map, rho, b):
 
     b = threshold value
     rho = scaling value
-
     """
 
-    # TODO: check maybe used nn.Sigmoid instead
-    return torch.sigmoid(-rho * (attenion_map - b))
+    return torch.sigmoid(rho * (attenion_map - b))
 
 
 # fedad - equation 6
 def intersection(maps: torch.Tensor):
     """
-    calculates the intersection of the attention maps
-
-    The intersection equals to minimum value of the attention maps
+    calculates the intersection of the attention maps.
+    The intersection equals to minimum value of the attention maps.
     """
     assert isinstance(maps, torch.Tensor)
 
@@ -181,9 +180,8 @@ def intersection(maps: torch.Tensor):
 # fedad - equation 6
 def union(maps: torch.Tensor):
     """
-    calculates the union of the attention maps
-
-    The union equals to maximum value of the attention maps
+    calculates the union of the attention maps.
+    The union equals to maximum value of the attention maps.
     """
 
     assert isinstance(maps, torch.Tensor)
@@ -200,41 +198,53 @@ def loss_intersection(
     # intesections include all classes
     # attentions include also all classes
     """
-    Expects:
-        intersections: torch.Size[num_classes, height, width]
-        attentions: torch.Size[num_classes, height, width]
+    intersections: torch.Size[num_classes, height, width]
+    attentions: torch.Size[num_classes, height, width]
 
     """
 
-    # weight the intersection with the attention map mask
-    weighted = intersections * masking(attentions, rho=10, b=0.6)
+    assert num_classes > 0
+    assert intersections.shape == attentions.shape
 
+    # weight the intersection with the attention map mask
     # Sum up the weighted intersection map
+    weighted = intersections * masking(attentions, rho=10, b=0.6)
     weighted_sum = weighted.sum(dim=(1, 2))
 
     # Sum of pixels in the non-weighted intersection
     # epsilon is added to avoid division by zero
-    class_sums = intersections.sum(dim=(1, 2)) + torch.finfo(float).eps
+    class_sums = intersections.sum(dim=(1, 2))
+    non_zero_class_sum = torch.where(
+        class_sums == 0.0,
+        torch.ones_like(class_sums) * torch.finfo(torch.float64).eps,
+        class_sums,
+    )
 
-    result = (-1 / num_classes) * (weighted_sum / class_sums).sum()
-
+    result = (-1 / num_classes) * (weighted_sum / non_zero_class_sum).sum()
     return result
 
 
 # fedad - equation 9
 def loss_union(unions: torch.Tensor, attentions: torch.Tensor, num_classes=10):
-    """ """
+    """
+    intersections: torch.Size[num_classes, height, width]
+    attentions: torch.Size[num_classes, height, width]
+
+    """
 
     # weight the intersection with the attention map mask
-    weighted = attentions * masking(unions, rho=10, b=0.3)
-
     # Sum up the weighted intersection map
+    weighted = attentions * masking(unions, rho=10, b=0.3)
     weighted_sum = weighted.sum(dim=(1, 2))
 
     # Sum of pixels in the non-weighted intersection
     # epsilon is added to avoid division by zero
-    class_sums = attentions.sum(dim=(1, 2)) + torch.finfo(float).eps
+    class_sums = attentions.sum(dim=(1, 2))
+    non_zero_class_sum = torch.where(
+        class_sums == 0.0,
+        torch.ones_like(class_sums) * torch.finfo(torch.float64).eps,
+        class_sums,
+    )
 
-    result = (-1 / num_classes) * (weighted_sum / class_sums).sum()
-
+    result = (-1 / num_classes) * (weighted_sum / non_zero_class_sum).sum()
     return result
