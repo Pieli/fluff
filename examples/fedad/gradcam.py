@@ -3,7 +3,6 @@ import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from cnn_cifar10 import CNN
 from torch.utils.data import DataLoader
 
 
@@ -26,17 +25,15 @@ class GradCAM:
             if name == self.target_layer:
                 print(name, module)
                 module.register_forward_hook(forward_hook)
-                module.register_backward_hook(backward_hook)
+                module.register_full_backward_hook(backward_hook)
 
-    def generate(self, input_tensor, class_idx):
+    def generate(self, input_tensor: torch.Tensor, class_idx: torch.Tensor):
+
         # Forward pass
         output = self.model(input_tensor)
         self.model.zero_grad()
 
-        pred = output.argmax(dim=1).item()
-
-        if pred != class_idx:
-            print(f"[IMPORTANT] The model predicted {pred} but the target class is {class_idx}")
+        pred = output.argmax(dim=1)
 
         # Select the target class
         target = output[:, class_idx].sum()
@@ -54,9 +51,9 @@ class GradCAM:
         cam = torch.relu(cam)
 
         # normalize the values
-        cam = cam / cam.max()  # Normalize
+        cam = cam / cam.amax(dim=(1, 2), keepdim=True)
 
-        return cam
+        return cam, pred
 
 
 def visualize_gradcam(input_tensor, gradcam):
@@ -106,10 +103,14 @@ class IndexedCIFAR10(torchvision.datasets.CIFAR10):
 
 def get_loader():
     # Define transformations (if needed)
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    )
 
     # Load the training set
-    trainset = IndexedCIFAR10(root="./data", train=True, download=True, transform=transform)
+    trainset = IndexedCIFAR10(
+        root="./data", train=True, download=True, transform=transform
+    )
 
     # Create a Loader
     train_loader = DataLoader(trainset, batch_size=1, shuffle=True)
@@ -120,13 +121,34 @@ def get_loader():
 if __name__ == "__main__":
     loader = get_loader()
 
+    to_label = {
+        0: "airplane",
+        1: "automobile",
+        2: "bird",
+        3: "cat",
+        4: "deer",
+        5: "dog",
+        6: "frog",
+        7: "horse",
+        8: "ship",
+        9: "truck",
+    }
+
     train_set = torchvision.datasets.CIFAR10(root="./data", train=True, download=True)
 
-    m_1 = CNN()
+    from resnet import ResNet_cifar
+
+    m_1 = ResNet_cifar(
+        resnet_size=20,
+        group_norm_num_groups=2,
+        freeze_bn=True,
+        freeze_bn_affine=True,
+    ).train(False)
+
     try:
         m_1.load_state_dict(
             torch.load(
-                "experiements/models/model_1.pth",
+                "./models/single-model",
                 map_location=torch.device("cpu"),
             )
         )
@@ -140,26 +162,37 @@ if __name__ == "__main__":
         )
 
     m_1.eval()
+    # print(m_1)
 
-    cam = GradCAM(m_1, "conv3")
+    cam = GradCAM(m_1, "layer3.2.conv2")
 
-    input_tensor, target_label, ind = next(iter(loader))
+    input_tensor, target_label, indicies = next(iter(loader))
 
     # Generate Grad-CAM
-    gradcam_map = cam.generate(input_tensor, int(target_label))
+    # gradcam_map = cam.generate(input_tensor, int(target_label))
+    gradcam_map, pred = cam.generate(input_tensor, target_label)
 
     # plt.matshow(gradcam_map.detach().numpy().squeeze())
     # plt.show()
 
     # Get the original image (without transforms)
-    orig_image, _ = train_set.__getitem__(ind)
 
-    orig_num = np.array(orig_image.copy())
-    colored = cv2.cvtColor(orig_num, cv2.COLOR_RGB2BGR)
-    cv2.imwrite("./orig.jpg", colored)
+    for num, i in enumerate(indicies):
+        orig_image, _ = train_set.__getitem__(i)
 
-    # train_set.
+        orig_num = np.array(orig_image.copy())
+        colored = cv2.cvtColor(orig_num, cv2.COLOR_RGB2BGR)
+        cv2.imwrite("./orig.jpg", colored)
 
-    # Visualize
-    orig_v2 = np.array(orig_image.copy())
-    visualize_gradcam(orig_v2, gradcam_map.squeeze())
+        # train_set.
+
+        # Visualize
+        orig_v2 = np.array(orig_image.copy())
+        visualize_gradcam(orig_v2, gradcam_map[num].squeeze())
+
+        if pred[num] != target_label[num]:
+            print(
+                f"[IMPORTANT] The model predicted {to_label[pred[num].item()]} but the target class is {to_label[target_label[num].item()]}"
+            )
+
+        input("Press [Enter] to continue...")
