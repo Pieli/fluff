@@ -2,10 +2,12 @@ import torch
 from typing import Iterable
 
 
-def alternative_avg(raw_logits: Iterable[torch.Tensor],
-                    raw_statistics: Iterable[torch.Tensor],
-                    num_classes: int,
-                    num_nodes: int,) -> torch.Tensor:
+def alternative_avg(
+    raw_logits: Iterable[torch.Tensor],
+    raw_statistics: Iterable[torch.Tensor],
+    num_classes: int,
+    num_nodes: int,
+) -> torch.Tensor:
 
     assert isinstance(raw_logits, (list, tuple))
     assert isinstance(raw_statistics, (list, tuple))
@@ -13,16 +15,19 @@ def alternative_avg(raw_logits: Iterable[torch.Tensor],
 
     logits = torch.stack(raw_logits)
     node_statistics = torch.stack(raw_statistics)
-    weights = node_weights(node_statistics, num_classes,
-                           len(logits)).squeeze(2).unsqueeze(1)
+    weights = (
+        node_weights(node_statistics, num_classes, len(logits)).squeeze(2).unsqueeze(1)
+    )
 
     return torch.sum((logits * weights), dim=0)
 
 
-def logits_ensemble_eq_3(raw_logits: Iterable[torch.Tensor],
-                         raw_statistics: Iterable[torch.Tensor],
-                         num_classes: int,
-                         num_nodes: int,) -> torch.Tensor:
+def logits_ensemble_eq_3(
+    raw_logits: Iterable[torch.Tensor],
+    raw_statistics: Iterable[torch.Tensor],
+    num_classes: int,
+    num_nodes: int,
+) -> torch.Tensor:
 
     assert isinstance(raw_logits, (list, tuple))
     assert isinstance(raw_statistics, (list, tuple))
@@ -35,7 +40,9 @@ def logits_ensemble_eq_3(raw_logits: Iterable[torch.Tensor],
 
 
 # fedad - node weights for equation 3
-def node_weights(node_stats: torch.Tensor, num_classes: int, num_nodes: int) -> torch.Tensor:
+def node_weights(
+    node_stats: torch.Tensor, num_classes: int, num_nodes: int
+) -> torch.Tensor:
     """
     Computes the node weights for each class.
 
@@ -52,17 +59,20 @@ def node_weights(node_stats: torch.Tensor, num_classes: int, num_nodes: int) -> 
     assert node_stats.shape == (num_nodes, num_classes, 1)
 
     num_per_class = node_stats.sum(dim=0)
-    non_zero = torch.where(num_per_class == 0, torch.ones_like(
-        num_per_class), num_per_class)
+    non_zero = torch.where(
+        num_per_class == 0, torch.ones_like(num_per_class), num_per_class
+    )
     node_based_weight = node_stats / non_zero
     return node_based_weight
 
 
 # fedad - equation 3
-def logits_ensemble(logits: torch.Tensor,
-                    node_weights: torch.Tensor,
-                    num_classes: int,
-                    num_nodes: int,) -> torch.Tensor:
+def logits_ensemble(
+    logits: torch.Tensor,
+    node_weights: torch.Tensor,
+    num_classes: int,
+    num_nodes: int,
+) -> torch.Tensor:
     r"""
     (\hat{z}^c) weighted average of nodes per class
 
@@ -88,7 +98,9 @@ def logits_ensemble(logits: torch.Tensor,
     return (logits * node_weights).sum(dim=0)
 
 
-def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_classes: int) -> torch.Tensor:
+def average_logits_per_class(
+    logits: torch.Tensor, targets: torch.Tensor, num_classes: int
+) -> torch.Tensor:
     r"""
     Computes the average logit for samples for the given label. (\hat{z}^c_k)
 
@@ -104,11 +116,13 @@ def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_cl
                       is the average logit across all samples for the corresponding class.
     """
     assert logits.dim() == 2, "must be 2D with shape (batch_size, num_classes)"
-    assert logits.size(
-        1) == num_classes, "must be 2D with shape (batch_size, num_classes)"
+    assert (
+        logits.size(1) == num_classes
+    ), "must be 2D with shape (batch_size, num_classes)"
     assert targets.dim() == 1, "targets must be 1D tensor"
     assert targets.size(0) == logits.size(
-        0), "targets have the same batch size as logits."
+        0
+    ), "targets have the same batch size as logits."
 
     # Create tensors to store cumulative logits and sample counts
     logit_sums = torch.zeros(num_classes, num_classes, device=logits.device)
@@ -124,8 +138,7 @@ def average_logits_per_class(logits: torch.Tensor, targets: torch.Tensor, num_cl
         class_counts[i] = mask.sum()
 
     # Avoid division by zero by replacing zero counts with ones
-    counts = torch.where(class_counts == 0, torch.ones_like(
-        class_counts), class_counts)
+    counts = torch.where(class_counts == 0, torch.ones_like(class_counts), class_counts)
     counts = torch.unsqueeze(counts, dim=1)
 
     # also unsqueeze the real count
@@ -152,33 +165,38 @@ def masking(attenion_map, rho, b):
 
 
 # fedad - equation 6
-def intersection(maps: list):
+def intersection(maps: torch.Tensor):
     """
     calculates the intersection of the attention maps
 
     The intersection equals to minimum value of the attention maps
     """
+    assert isinstance(maps, torch.Tensor)
 
     # check if not the third dimension is needed
     # check if keepdim is needed
-    return torch.min(torch.stack(maps), dim=0).values
+    return torch.min(maps, dim=0).values
 
 
 # fedad - equation 6
-def union(maps: list):
+def union(maps: torch.Tensor):
     """
     calculates the union of the attention maps
 
     The union equals to maximum value of the attention maps
     """
 
+    assert isinstance(maps, torch.Tensor)
+
     # check if not the third dimension is needed
     # check if keepdim is needed
-    return torch.max(torch.stack(maps), dim=0).values
+    return torch.max(maps, dim=0).values
 
 
 # fedad - equation 8
-def loss_intersection(intersections: torch.Tensor, attentions: torch.Tensor, num_classes=10):
+def loss_intersection(
+    intersections: torch.Tensor, attentions: torch.Tensor, num_classes=10
+):
     # intesections include all classes
     # attentions include also all classes
     """

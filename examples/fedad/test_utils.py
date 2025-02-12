@@ -16,29 +16,31 @@ def test_masking_values():
 
 
 def test_union_simple():
-    maps = [
-        torch.tensor(
-            [
-                [1, 2, 3],
-                [2, 2, 1],
-                [3, 2, 1],
-            ]
-        ),
-        torch.tensor(
-            [
-                [1, 2, 1],
-                [3, 2, 3],
-                [2, 2, 1],
-            ]
-        ),
-        torch.tensor(
-            [
-                [3, 2, 2],
-                [2, 2, 2],
-                [1, 2, 3],
-            ]
-        ),
-    ]
+    maps = torch.stack(
+        [
+            torch.tensor(
+                [
+                    [1, 2, 3],
+                    [2, 2, 1],
+                    [3, 2, 1],
+                ]
+            ),
+            torch.tensor(
+                [
+                    [1, 2, 1],
+                    [3, 2, 3],
+                    [2, 2, 1],
+                ]
+            ),
+            torch.tensor(
+                [
+                    [3, 2, 2],
+                    [2, 2, 2],
+                    [1, 2, 3],
+                ]
+            ),
+        ]
+    )
 
     results = utils.union(maps)
 
@@ -48,29 +50,31 @@ def test_union_simple():
 
 
 def test_intersection_simple():
-    maps = [
-        torch.tensor(
-            [
-                [1, 2, 3],
-                [1, 2, 3],
-                [1, 2, 3],
-            ]
-        ),
-        torch.tensor(
-            [
-                [3, 2, 1],
-                [3, 2, 1],
-                [3, 2, 1],
-            ]
-        ),
-        torch.tensor(
-            [
-                [2, 2, 2],
-                [2, 2, 2],
-                [2, 2, 2],
-            ]
-        ),
-    ]
+    maps = torch.stack(
+        [
+            torch.tensor(
+                [
+                    [1, 2, 3],
+                    [1, 2, 3],
+                    [1, 2, 3],
+                ]
+            ),
+            torch.tensor(
+                [
+                    [3, 2, 1],
+                    [3, 2, 1],
+                    [3, 2, 1],
+                ]
+            ),
+            torch.tensor(
+                [
+                    [2, 2, 2],
+                    [2, 2, 2],
+                    [2, 2, 2],
+                ]
+            ),
+        ]
+    )
 
     results = utils.intersection(maps)
     print(results)
