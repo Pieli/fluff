@@ -2,8 +2,8 @@ import os
 from torchvision import transforms
 from torchvision.datasets import CIFAR100
 
-from fluff.datasets.dataset import NebulaDataset
-from fluff.datasets.partitions.partitions import Partition
+from .dataset import NebulaDataset
+from .partitions.partitions import Partition
 
 
 class CIFAR100Dataset(NebulaDataset):
@@ -36,13 +36,13 @@ class CIFAR100Dataset(NebulaDataset):
         self.partition.set_num_classes(self.num_classes)
         self.partition_map = self.partition.generate(self.train_set)
         self.train_indices_map = self.partition_map[self.partition.get_id()]
-        self.local_test_indices_map = self.partition.generate(self.test_set)[self.partition.get_id()]
+        self.local_test_indices_map = self.partition.generate(self.test_set)[
+            self.partition.get_id()
+        ]
 
         print(f"Len of train indices map: {len(self.train_indices_map)}")
-        print(
-            f"Len of test indices map (global): {len(self.test_indices_map)}")
-        print(
-            f"Len of test indices map (local): {len(self.local_test_indices_map)}")
+        print(f"Len of test indices map (global): {len(self.test_indices_map)}")
+        print(f"Len of test indices map (local): {len(self.local_test_indices_map)}")
 
     def load_cifar100_dataset(self, train=True):
         mean = (0.4914, 0.4822, 0.4465)

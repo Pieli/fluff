@@ -15,14 +15,13 @@ sys.path.append("../..")
 from fluff import Node
 from fluff.utils import timer
 from fluff.aggregator import FedAvg
-from fluff.datasets.cifar10 import CIFAR10Dataset
+from fluff.datasets import CIFAR10Dataset, CIFAR100Dataset
 from fluff.datasets.partitions import DirichletMap, NullMap, BalancedFraction
 
 from typing import cast, Callable
 
 
 import utils
-from datasets import CIFAR100Dataset
 from models import LitCNN, ServerLitCNNCifar100, CNN
 from resnet import ResNet_cifar
 
