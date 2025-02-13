@@ -75,12 +75,19 @@ def alternative_avg(
     logits = torch.stack(raw_logits)
     node_statistics = torch.stack(raw_statistics)
     weights = (
-        node_weights(node_statistics, num_classes, len(logits)).squeeze(2).unsqueeze(1)
+        node_weights(
+            node_statistics,
+            num_classes,
+            len(logits),
+        )
+        .squeeze(2)
+        .unsqueeze(1)
     )
 
     return torch.sum((logits * weights), dim=0)
 
 
+# TODO -> remove?
 def logits_ensemble_eq_3(
     raw_logits: Iterable[torch.Tensor],
     raw_statistics: Iterable[torch.Tensor],
@@ -230,9 +237,6 @@ def intersection(maps: torch.Tensor):
     The intersection equals to minimum value of the attention maps.
     """
     assert isinstance(maps, torch.Tensor)
-
-    # check if not the third dimension is needed
-    # check if keepdim is needed
     return torch.min(maps, dim=0).values
 
 
@@ -244,9 +248,6 @@ def union(maps: torch.Tensor):
     """
 
     assert isinstance(maps, torch.Tensor)
-
-    # check if not the third dimension is needed
-    # check if keepdim is needed
     return torch.max(maps, dim=0).values
 
 

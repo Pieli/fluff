@@ -23,7 +23,7 @@ class GradCAM:
 
         for name, module in self.model.named_modules():
             if name == self.target_layer:
-                print(name, module)
+                print("Hooked: ", name)
                 module.register_forward_hook(forward_hook)
                 module.register_full_backward_hook(backward_hook)
 
