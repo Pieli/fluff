@@ -60,6 +60,7 @@ def sample_with_top(
     return sampled
 
 
+# TODO -> change this name
 def alternative_avg(
     raw_logits: Iterable[torch.Tensor],
     raw_statistics: Iterable[torch.Tensor],
