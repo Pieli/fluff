@@ -4,7 +4,9 @@ from typing import Iterable, cast
 
 
 def sample_with_top(
-    weights: torch.Tensor, num_out_samples: int, top: int = 2
+    weights: torch.Tensor,
+    num_out_samples: int,
+    top: int = 2,
 ) -> list[list[int]]:
     """
     Args:
@@ -40,9 +42,18 @@ def sample_with_top(
             if ind not in top_places
         ]
 
-        # adjust to sum up to 1
+        # adjust to sum up to 1 + all zero case
         probs_sum = sum(pool_probs_raw)
+        if probs_sum == 0.0:
+            pool_probs_raw = [1] * len(pool_probs_raw)
+            probs_sum = len(pool_probs_raw)
+
         p = [prob / probs_sum for prob in pool_probs_raw]
+
+        # single 1 + all zero case
+        if 1.0 in p:
+            rest = 0.05 / (len(p) - 1)
+            p = [0.95 if val == 1 else rest for val in p]
 
         # sample missing values
         sampled[c].extend(
@@ -237,7 +248,7 @@ def intersection(maps: torch.Tensor):
     The intersection equals to minimum value of the attention maps.
     """
     assert isinstance(maps, torch.Tensor)
-    return torch.min(maps, dim=0).values
+    return maps.amin(dim=(0, 1))
 
 
 # fedad - equation 6
@@ -248,12 +259,14 @@ def union(maps: torch.Tensor):
     """
 
     assert isinstance(maps, torch.Tensor)
-    return torch.max(maps, dim=0).values
+    return maps.amax(dim=(0, 1))
 
 
 # fedad - equation 8
 def loss_intersection(
-    intersections: torch.Tensor, attentions: torch.Tensor, num_classes=10
+    intersections: torch.Tensor,
+    attentions: torch.Tensor,
+    num_classes=10,
 ):
     # intesections include all classes
     # attentions include also all classes
@@ -287,10 +300,11 @@ def loss_intersection(
 # fedad - equation 9
 def loss_union(unions: torch.Tensor, attentions: torch.Tensor, num_classes=10):
     """
-    intersections: torch.Size[num_classes, height, width]
+    unions: torch.Size[num_classes, height, width]
     attentions: torch.Size[num_classes, height, width]
-
     """
+    assert unions.size(0) == num_classes
+    assert attentions.size(0) == num_classes
 
     # weight the intersection with the attention map mask
     # Sum up the weighted intersection map

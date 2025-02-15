@@ -209,8 +209,8 @@ def run(args: Namespace):
     s_model = lam_resnet()
 
     for en in ens:
-        en.freeze_bn = True
-        en.freeze_bn_affine = True
+        en.freeze_bn = True  # type: ignore
+        en.freeze_bn_affine = True  # type: ignore
         en.train(False)
 
     # aggregator = FedAvg()

@@ -1,3 +1,4 @@
+import time
 import torch
 import torchmetrics
 import lightning as pl
@@ -7,6 +8,8 @@ import torch.nn.functional as F
 import utils
 
 from typing import Sequence
+
+from gradcam import GradCAM
 
 
 class CNN(nn.Module):
@@ -123,21 +126,30 @@ class ServerLitCNNCifar100(pl.LightningModule):
         super().__init__()
 
         assert isinstance(model, nn.Module)
-        assert distillation in ("kl", "l2")
+        assert distillation in ("kl", "l2", "l2_new")
 
         self.cnn = model
         self.ensemble = nn.ModuleList(ensemble)
         self.criterion = nn.CrossEntropyLoss()
 
+        # logits distillation
         if distillation == "kl":
             self.dist_criterion = self.kl_divergence
+        elif distillation == "l2_new":
+            self.dist_criterion = self.l2_distillation_new  # type: ignore
         elif distillation == "l2":
-            self.dist_criterion = self.l2_distillation
+            self.dist_criterion = self.l2_distillation  # type: ignore
         else:
             raise Exception("Some input is wrong")
 
+        # gradcam
+        self.ensemble_cams = [GradCAM(mod, "layer3.2.conv2") for mod in self.ensemble]
+        self.server_cam = GradCAM(self.cnn, "layer3.2.conv2")
+
+        # statistics
         self._count_stats: Sequence[torch.Tensor] = tuple(torch.empty(1))
 
+        # metrics
         self.train_acc = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=10
         )
@@ -161,17 +173,29 @@ class ServerLitCNNCifar100(pl.LightningModule):
         y_hat = self(x)
 
         batch_logits = []
-        for ens in self.ensemble:
+        for ind, ens in enumerate(self.ensemble):
+            """
             with torch.no_grad():
                 ens_y_hat = ens.forward(x)
+            """
+            ens_y_hat = ens.forward(x)
 
             batch_logits.append(ens_y_hat)
 
         ens_logits = utils.alternative_avg(
-            batch_logits, self._count_stats, 10, len(self.ensemble)
+            batch_logits,
+            self._count_stats,
+            10,
+            len(self.ensemble),
         )
 
         loss = self.dist_criterion(y_hat, ens_logits, T=3)
+        union = time.time()
+        union_loss = self.union_loss(batch_logits, y_hat, num_samples=1, top=2)
+        # print(f"#> union {(time.time() - union):.4f}")
+        self.log("union_loss", union_loss, on_step=True)
+
+        del batch_logits
 
         self.train_div(
             torch.softmax(y_hat, dim=1),
@@ -181,6 +205,65 @@ class ServerLitCNNCifar100(pl.LightningModule):
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_loss", loss, on_step=False, on_epoch=True)
+        return loss
+
+    def union_loss(self, batch_logits, server_logits, num_samples, top):
+        assert len(batch_logits) > 0
+
+        classes = 10
+
+        weights = utils.node_weights(
+            node_stats=torch.stack(self._count_stats),
+            num_classes=classes,
+            num_nodes=len(self.ensemble),
+        )
+
+        # sampled_nodes = [[0, 1, 2]]
+        sampled_nodes = utils.sample_with_top(
+            weights,
+            num_out_samples=num_samples,
+            top=top,
+        )
+
+        batch_size = batch_logits[0].size(1)
+        device = batch_logits[0].device
+
+        class_maps = []
+        server_maps = []
+        for c_ind, selected in enumerate(sampled_nodes):
+            target = torch.full((batch_size,), c_ind, dtype=torch.int, device=device)
+
+            start_time = time.time()
+
+            node_maps = [
+                self.ensemble_cams[node_ind]
+                .generate_from_logits(batch_logits[node_ind], target)
+                .amax(dim=(0,))
+                for node_ind in selected
+            ]
+
+            # print(f"--- {(time.time() - start_time):.4f} seconds ---")
+
+            server_cam = self.server_cam.generate_from_logits(
+                server_logits,
+                target,
+            )
+
+            server_maps.append(server_cam)
+            class_maps.append(torch.stack(node_maps).amax(dim=(0,)))
+
+        class_stack = torch.stack(class_maps)
+        server_stack = torch.stack(server_maps).amax(dim=(1,))
+
+        del class_maps
+        del server_maps
+
+        loss = utils.loss_union(
+            class_stack,
+            server_stack,
+            num_classes=10,
+        )
+
         return loss
 
     def l2_distillation(
@@ -194,6 +277,21 @@ class ServerLitCNNCifar100(pl.LightningModule):
             torch.sigmoid(server_log),
             torch.sigmoid(ensemble_log),
             reduction="mean",
+        )
+
+    def l2_distillation_new(
+        self,
+        server_log: torch.Tensor,
+        ensemble_log: torch.Tensor,
+        T: int = 3,
+    ) -> torch.Tensor:
+
+        return (
+            torch.linalg.vector_norm(
+                server_log - ensemble_log,
+                ord=2,
+            )
+            / 10
         )
 
     def kl_divergence(

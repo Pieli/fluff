@@ -5,6 +5,10 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
+from typing import Union
+
+import time
+
 
 class GradCAM:
     def __init__(self, model, target_layer):
@@ -27,33 +31,48 @@ class GradCAM:
                 module.register_forward_hook(forward_hook)
                 module.register_full_backward_hook(backward_hook)
 
-    def generate(self, input_tensor: torch.Tensor, class_idx: torch.Tensor):
+    def generate(
+        self,
+        input_tensor: torch.Tensor,
+        class_idx: torch.Tensor,
+    ) -> Union[torch.tensor, tuple[torch.tensor, bool]]:
 
         # Forward pass
+        self.model.eval()
         output = self.model(input_tensor)
         self.model.zero_grad()
 
-        pred = output.argmax(dim=1)
-
-        # Select the target class
-        target = output[:, class_idx].sum()
-
-        # Backward pass
-        target.backward(retain_graph=True)
+        # Select the target class + backward pass
+        output[:, class_idx].sum().backward(retain_graph=True)
 
         # Compute Grad-CAM
         weights = self.gradients.mean(dim=(0, 2, 3), keepdim=True)
 
-        # weighted average
-        cam = (weights * self.activations).sum(dim=1)
-
-        # only account for positive change
-        cam = torch.relu(cam)
+        # weighted average + only account for positiv change
+        cam = torch.relu((weights * self.activations).sum(dim=1))
 
         # normalize the values
-        cam = cam / cam.amax(dim=(1, 2), keepdim=True)
+        return cam / (cam.amax(dim=(1, 2), keepdim=True) + torch.finfo(torch.float).eps)
 
-        return cam, pred
+    def generate_from_logits(
+        self,
+        out_tensor: torch.Tensor,
+        class_idx: torch.Tensor,
+    ) -> Union[torch.tensor, tuple[torch.tensor, bool]]:
+
+        # Select the target class + backward pass
+        self.model.eval()
+        self.model.zero_grad()
+        out_tensor[:, class_idx].sum().backward(retain_graph=True)
+
+        # Compute Grad-CAM
+        weights = self.gradients.mean(dim=(0, 2, 3), keepdim=True)
+
+        # weighted average + only account for positiv change
+        cam = torch.relu((weights * self.activations).sum(dim=1))
+
+        # normalize the values
+        return cam / (cam.amax(dim=(1, 2), keepdim=True) + torch.finfo(torch.float).eps)
 
 
 def visualize_gradcam(input_tensor, gradcam):
