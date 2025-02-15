@@ -172,42 +172,62 @@ class ServerLitCNNCifar100(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
 
-        batch_logits = []
-        for ind, ens in enumerate(self.ensemble):
-            """
-            with torch.no_grad():
-                ens_y_hat = ens.forward(x)
-            """
-            ens_y_hat = ens.forward(x)
-
-            batch_logits.append(ens_y_hat)
+        batch_logits = [ens.forward(x) for ens in self.ensemble]
 
         ens_logits = utils.alternative_avg(
-            batch_logits,
-            self._count_stats,
-            10,
-            len(self.ensemble),
+            raw_logits=batch_logits,
+            raw_statistics=self._count_stats,
+            num_classes=10,
+            num_nodes=len(self.ensemble),
         )
 
         loss = self.dist_criterion(y_hat, ens_logits, T=3)
-        union = time.time()
-        union_loss = self.union_loss(batch_logits, y_hat, num_samples=1, top=2)
-        # print(f"#> union {(time.time() - union):.4f}")
-        self.log("union_loss", union_loss, on_step=True)
+
+        cam_generation_start = time.time()
+        class_cams, server_cams = self.cam_generation(
+            batch_logits=batch_logits,
+            server_logits=y_hat,
+            num_samples=1,
+            top=2,
+        )
 
         del batch_logits
 
-        self.train_div(
-            torch.softmax(y_hat, dim=1),
-            torch.softmax(ens_logits, dim=1),
-        )
+        # print(f"#> cam_generation {(time.time() - cam_generation_start):.4f}s")
+
+        union_loss = self.union_loss(server_cams, class_cams)
+        inter_loss = self.inter_loss(server_cams, class_cams)
+
+
+        self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
         self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_loss", loss, on_step=False, on_epoch=True)
+        # self.log("train_union_loss", union_loss, on_step=True)
+        # self.log("train_inter_loss", inter_loss, on_step=True)
+
         return loss
 
-    def union_loss(self, batch_logits, server_logits, num_samples, top):
+    def union_loss(self, server_cams, client_cams):
+        loss = utils.loss_union(
+            client_cams.amax(dim=(1, 2)),
+            server_cams.amax(dim=(1,)),
+            num_classes=10,
+        )
+
+        return loss
+
+    def inter_loss(self, server_cams, client_cams):
+        loss = utils.loss_intersection(
+            client_cams.amin(dim=(1, 2)),
+            server_cams.amin(dim=(1,)),
+            num_classes=10,
+        )
+
+        return loss
+
+    def cam_generation(self, batch_logits, server_logits, num_samples, top):
         assert len(batch_logits) > 0
 
         classes = 10
@@ -236,9 +256,10 @@ class ServerLitCNNCifar100(pl.LightningModule):
             start_time = time.time()
 
             node_maps = [
-                self.ensemble_cams[node_ind]
-                .generate_from_logits(batch_logits[node_ind], target)
-                .amax(dim=(0,))
+                self.ensemble_cams[node_ind].generate_from_logits(
+                    batch_logits[node_ind],
+                    target,
+                )
                 for node_ind in selected
             ]
 
@@ -250,21 +271,9 @@ class ServerLitCNNCifar100(pl.LightningModule):
             )
 
             server_maps.append(server_cam)
-            class_maps.append(torch.stack(node_maps).amax(dim=(0,)))
+            class_maps.append(torch.stack(node_maps))
 
-        class_stack = torch.stack(class_maps)
-        server_stack = torch.stack(server_maps).amax(dim=(1,))
-
-        del class_maps
-        del server_maps
-
-        loss = utils.loss_union(
-            class_stack,
-            server_stack,
-            num_classes=10,
-        )
-
-        return loss
+        return torch.stack(class_maps), torch.stack(server_maps)
 
     def l2_distillation(
         self,
