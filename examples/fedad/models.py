@@ -181,7 +181,7 @@ class ServerLitCNNCifar100(pl.LightningModule):
             num_nodes=len(self.ensemble),
         )
 
-        loss = self.dist_criterion(y_hat, ens_logits, T=3)
+        logits_loss = self.dist_criterion(y_hat, ens_logits, T=3)
 
         cam_generation_start = time.time()
         class_cams, server_cams = self.cam_generation(
@@ -198,16 +198,19 @@ class ServerLitCNNCifar100(pl.LightningModule):
         union_loss = self.union_loss(server_cams, class_cams)
         inter_loss = self.inter_loss(server_cams, class_cams)
 
+        total_loss = logits_loss + union_loss + inter_loss
 
         self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
         self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
-        self.log("train_loss", loss, on_step=False, on_epoch=True)
-        # self.log("train_union_loss", union_loss, on_step=True)
-        # self.log("train_inter_loss", inter_loss, on_step=True)
+        self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
+        self.log("train_union_loss", union_loss, on_step=True, on_epoch= True)
+        self.log("train_inter_loss", inter_loss, on_step=True, on_epoch=True)
+        self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
 
-        return loss
+        return total_loss
+
 
     def union_loss(self, server_cams, client_cams):
         loss = utils.loss_union(
