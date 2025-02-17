@@ -14,7 +14,13 @@ from fluff.datasets import CIFAR100Dataset
 from fluff.datasets.partitions import BalancedFraction
 
 from models import ServerLitCNNCifar100
-from server_node import lam_cnn, lam_resnet, training_phase, load_models, ServerNode
+from server_node import (
+    lam_cnn,  # noqa: F401
+    lam_resnet,
+    training_phase,  # noqa: F401
+    load_models,
+    ServerNode,
+)
 
 
 def generate_model_run_name() -> str:
