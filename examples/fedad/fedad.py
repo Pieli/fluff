@@ -38,9 +38,6 @@ def run(args: Namespace):
         en.freeze_bn_affine = True  # type: ignore
         en.train(False)
 
-    # aggregator = FedAvg()
-    # s_model.load_state_dict(aggregator.run(ens))
-
     # Distillation
     server = ServerNode(
         "server",

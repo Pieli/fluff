@@ -1,9 +1,13 @@
 from argparse import ArgumentParser
 
-import runner
+import fedad
 import fedavg
+import fedours
 
 parser = ArgumentParser()
+
+
+parser.add_argument("mode", type=str)
 
 parser.add_argument("-e", "--epochs", type=int, default=3)
 parser.add_argument("-k", "--nodes", type=int, default=1)
@@ -21,5 +25,12 @@ parser.add_argument("--seed", type=int, default=42)
 
 args = parser.parse_args()
 
-runner.run(args)
-# fedavg.run(args)
+match (args.mode):
+    case "fedavg":
+        fedavg.run(args)
+    case "fedad":
+        fedad.run(args)
+    case "fedours":
+        fedours.run(args)
+    case _:
+        print("Arguement [mod] was not valid")

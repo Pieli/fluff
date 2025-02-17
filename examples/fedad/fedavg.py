@@ -61,12 +61,6 @@ def run(args: Namespace):
 
     agg = FedAvg()
     model_type = lam_resnet
-    """
-        partition=DirichletMap(
-            partition_id=num,
-            partitions_number=args.nodes
-        )),
-        """
 
     print(args)
 

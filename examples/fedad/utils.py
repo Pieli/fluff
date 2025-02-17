@@ -1,6 +1,53 @@
 import numpy as np
 import torch
+import torch.nn.functional as F
+
 from typing import Iterable, cast
+
+
+def l2_distillation(
+    server_log: torch.Tensor,
+    ensemble_log: torch.Tensor,
+    T: int = 3,
+) -> torch.Tensor:
+
+    return F.mse_loss(
+        torch.sigmoid(server_log),
+        torch.sigmoid(ensemble_log),
+        reduction="mean",
+    )
+
+
+def l2_distillation_new(
+    server_log: torch.Tensor,
+    ensemble_log: torch.Tensor,
+    T: int = 3,
+) -> torch.Tensor:
+
+    return (
+        torch.linalg.vector_norm(
+            server_log - ensemble_log,
+            ord=2,
+        )
+        / 10
+    )
+
+
+def kl_divergence(
+    p: torch.Tensor,
+    q: torch.Tensor,
+    T: int = 3,
+) -> torch.Tensor:
+
+    return (
+        F.kl_div(
+            F.log_softmax(p / T, dim=1),
+            F.softmax(q / T, dim=1),
+            reduction="batchmean",
+        )
+        * T
+        * T
+    )
 
 
 def sample_with_top(

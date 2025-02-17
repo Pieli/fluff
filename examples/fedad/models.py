@@ -65,11 +65,11 @@ class ServerLitCNNCifar100(LitModel):
 
         # logits distillation
         if distillation == "kl":
-            self.dist_criterion = self.kl_divergence
+            self.dist_criterion = utils.kl_divergence
         elif distillation == "l2_new":
-            self.dist_criterion = self.l2_distillation_new  # type: ignore
+            self.dist_criterion = utils.l2_distillation_new  # type: ignore
         elif distillation == "l2":
-            self.dist_criterion = self.l2_distillation  # type: ignore
+            self.dist_criterion = utils.l2_distillation  # type: ignore
         else:
             raise Exception("Some input is wrong")
 
@@ -112,8 +112,17 @@ class ServerLitCNNCifar100(LitModel):
         del batch_logits
         # print(f"#> cam_generation {(time.time() - cam_generation_start):.4f}s")
 
-        union_loss = self.union_loss(server_cams, class_cams)
-        inter_loss = self.inter_loss(server_cams, class_cams)
+        union_loss = utils.loss_union(
+            class_cams.amax(dim=(1, 2)),
+            server_cams.amax(dim=(1,)),
+            num_classes=10,
+        )
+
+        inter_loss = utils.loss_intersection(
+            class_cams.amin(dim=(1, 2)),
+            server_cams.amin(dim=(1,)),
+            num_classes=10,
+        )
 
         total_loss = logits_loss + union_loss + inter_loss
 
@@ -127,22 +136,6 @@ class ServerLitCNNCifar100(LitModel):
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
 
         return total_loss
-
-    def union_loss(self, server_cams, client_cams):
-        loss = utils.loss_union(
-            client_cams.amax(dim=(1, 2)),
-            server_cams.amax(dim=(1,)),
-            num_classes=10,
-        )
-        return loss
-
-    def inter_loss(self, server_cams, client_cams):
-        loss = utils.loss_intersection(
-            client_cams.amin(dim=(1, 2)),
-            server_cams.amin(dim=(1,)),
-            num_classes=10,
-        )
-        return loss
 
     def cam_generation(self, batch_logits, server_logits, num_samples, top):
         assert len(batch_logits) > 0
@@ -187,51 +180,6 @@ class ServerLitCNNCifar100(LitModel):
             class_maps.append(torch.stack(node_maps))
 
         return torch.stack(class_maps), torch.stack(server_maps)
-
-    def l2_distillation(
-        self,
-        server_log: torch.Tensor,
-        ensemble_log: torch.Tensor,
-        T: int = 3,
-    ) -> torch.Tensor:
-
-        return F.mse_loss(
-            torch.sigmoid(server_log),
-            torch.sigmoid(ensemble_log),
-            reduction="mean",
-        )
-
-    def l2_distillation_new(
-        self,
-        server_log: torch.Tensor,
-        ensemble_log: torch.Tensor,
-        T: int = 3,
-    ) -> torch.Tensor:
-
-        return (
-            torch.linalg.vector_norm(
-                server_log - ensemble_log,
-                ord=2,
-            )
-            / 10
-        )
-
-    def kl_divergence(
-        self,
-        p: torch.Tensor,
-        q: torch.Tensor,
-        T: int = 3,
-    ) -> torch.Tensor:
-
-        return (
-            F.kl_div(
-                F.log_softmax(p / T, dim=1),
-                F.softmax(q / T, dim=1),
-                reduction="batchmean",
-            )
-            * T
-            * T
-        )
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.cnn.parameters(), lr=1e-3)
