@@ -19,7 +19,13 @@ def run(args: Namespace):
 
     # setup
     nodes = [
-        fluff.Node(f"node-{num}", LitCNN(), CIFAR10Dataset(DirichletMap(partition_id=num, partitions_number=args.nodes))).setup()
+        fluff.Node(
+            f"node-{num}",
+            LitCNN(),
+            CIFAR10Dataset(
+                DirichletMap(partition_id=num, partitions_number=args.nodes)
+            ),
+        ).setup()
         for num in range(args.nodes)
     ]
 

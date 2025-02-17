@@ -1,13 +1,8 @@
 import copy
-import json
-import torch
-from torch import nn
 import lightning as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 from argparse import Namespace
 from datetime import datetime
-
-from torch.utils import data
 
 import os
 import sys
@@ -17,15 +12,16 @@ sys.path.append("../..")
 from fluff import Node
 from fluff.utils import timer
 from fluff.aggregator import FedAvg
-from fluff.datasets import CIFAR10Dataset, CIFAR100Dataset
-from fluff.datasets.partitions import DirichletMap, NullMap, BalancedFraction
+from fluff.datasets import CIFAR10Dataset
+from fluff.datasets.partitions import DirichletMap
+from fluff.models import CNN
 
-from typing import cast, Callable, Dict, Any, Optional
+
+from typing import Dict, Any
 from collections.abc import Mapping
 
 
-import utils
-from models import LitCNN, ServerLitCNNCifar100, CNN, CNNv2
+from models import LitCNN
 from resnet import ResNet_cifar
 
 

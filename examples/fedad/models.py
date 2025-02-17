@@ -1,7 +1,5 @@
-import time
 import torch
 import torchmetrics
-import lightning as pl
 from torch import nn
 import torch.nn.functional as F
 
@@ -11,75 +9,24 @@ from typing import Sequence
 
 from gradcam import GradCAM
 
-
-class CNN(nn.Module):
-    def __init__(self, num_classes: int = 10):
-        super().__init__()
-
-        self.conv1 = nn.Conv2d(3, 32, 3)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(32, 64, 3)
-        self.conv3 = nn.Conv2d(64, 64, 3)
-        self.fc1 = nn.Linear(64 * 4 * 4, 64)
-        self.fc2 = nn.Linear(64, num_classes)
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = F.relu(self.conv3(x))
-        x = x.view(-1, 64 * 4 * 4)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
+from fluff.models import LitModel
 
 
-# architecture of nebula platform (for comparing)
-class CNNv2(nn.Module):
-    def __init__(self, num_classes: int = 10):
-        super().__init__()
-
-        self.conv1 = torch.nn.Conv2d(3, 16, 3, padding=1)
-        self.conv2 = torch.nn.Conv2d(16, 32, 3, padding=1)
-        self.conv3 = torch.nn.Conv2d(32, 64, 3, padding=1)
-        self.pool = torch.nn.MaxPool2d(2, 2)
-        self.fc1 = torch.nn.Linear(64 * 4 * 4, 512)
-        self.fc2 = torch.nn.Linear(512, num_classes)
-
-    def forward(self, x):
-        x = self.pool(torch.relu(self.conv1(x)))
-        x = self.pool(torch.relu(self.conv2(x)))
-        x = self.pool(torch.relu(self.conv3(x)))
-        x = x.view(-1, 64 * 4 * 4)
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
-
-
-class LitCNN(pl.LightningModule):
-    def __init__(self, model: nn.Module, num_classes: int = 10, lr: float = 0.01):
-        super().__init__()
-
-        self.lr = lr
+class LitCNN(LitModel):
+    def __init__(
+        self,
+        model: nn.Module,
+        num_classes: int = 10,
+        lr: float = 0.01,
+    ):
+        super().__init__(model, num_classes, lr)
 
         assert isinstance(model, nn.Module)
 
+        self.lr = lr
         self.cnn = model
         self.criterion = nn.CrossEntropyLoss()
-
-        self.train_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=num_classes
-        )
-        self.val_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=num_classes
-        )
-        self.test_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=num_classes
-        )
-
         self._recorded_statistics: torch.Tensor = torch.zeros(10)
-
-    def forward(self, x):
-        return self.cnn(x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -93,22 +40,6 @@ class LitCNN(pl.LightningModule):
         self.log("train_loss", loss, on_step=False, on_epoch=True)
         return loss
 
-    def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        val_loss = self.criterion(y_hat, y)
-        self.val_acc(y_hat, y)
-        self.log("val_acc", self.val_acc, on_step=True, on_epoch=True)
-        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
-
-    def test_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        test_loss = self.criterion(y_hat, y)
-        self.test_acc(y_hat, y)
-        self.log("test_acc", self.test_acc, on_step=False, on_epoch=True)
-        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
-
     def configure_optimizers(self):
         return torch.optim.SGD(self.parameters(), lr=self.lr, weight_decay=3e-4)
 
@@ -116,14 +47,14 @@ class LitCNN(pl.LightningModule):
         return self._recorded_statistics
 
 
-class ServerLitCNNCifar100(pl.LightningModule):
+class ServerLitCNNCifar100(LitModel):
     def __init__(
         self,
         model: nn.Module,
         ensemble: list[nn.Module],
         distillation: str,
     ):
-        super().__init__()
+        super().__init__(model, num_classes=10, lr=1e-3)
 
         assert isinstance(model, nn.Module)
         assert distillation in ("kl", "l2", "l2_new")
@@ -150,23 +81,10 @@ class ServerLitCNNCifar100(pl.LightningModule):
         self._count_stats: Sequence[torch.Tensor] = tuple(torch.empty(1))
 
         # metrics
-        self.train_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=10
-        )
-        self.val_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=10
-        )
-        self.test_acc = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=10
-        )
-
         self.train_div = torchmetrics.KLDivergence(
             log_prob=False,
             reduction="mean",
         )
-
-    def forward(self, x):
-        return self.cnn(x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -183,7 +101,7 @@ class ServerLitCNNCifar100(pl.LightningModule):
 
         logits_loss = self.dist_criterion(y_hat, ens_logits, T=3)
 
-        cam_generation_start = time.time()
+        # cam_generation_start = time.time()
         class_cams, server_cams = self.cam_generation(
             batch_logits=batch_logits,
             server_logits=y_hat,
@@ -192,7 +110,6 @@ class ServerLitCNNCifar100(pl.LightningModule):
         )
 
         del batch_logits
-
         # print(f"#> cam_generation {(time.time() - cam_generation_start):.4f}s")
 
         union_loss = self.union_loss(server_cams, class_cams)
@@ -205,12 +122,11 @@ class ServerLitCNNCifar100(pl.LightningModule):
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
-        self.log("train_union_loss", union_loss, on_step=True, on_epoch= True)
+        self.log("train_union_loss", union_loss, on_step=True, on_epoch=True)
         self.log("train_inter_loss", inter_loss, on_step=True, on_epoch=True)
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
 
         return total_loss
-
 
     def union_loss(self, server_cams, client_cams):
         loss = utils.loss_union(
@@ -218,7 +134,6 @@ class ServerLitCNNCifar100(pl.LightningModule):
             server_cams.amax(dim=(1,)),
             num_classes=10,
         )
-
         return loss
 
     def inter_loss(self, server_cams, client_cams):
@@ -227,17 +142,14 @@ class ServerLitCNNCifar100(pl.LightningModule):
             server_cams.amin(dim=(1,)),
             num_classes=10,
         )
-
         return loss
 
     def cam_generation(self, batch_logits, server_logits, num_samples, top):
         assert len(batch_logits) > 0
 
-        classes = 10
-
         weights = utils.node_weights(
             node_stats=torch.stack(self._count_stats),
-            num_classes=classes,
+            num_classes=10,
             num_nodes=len(self.ensemble),
         )
 
@@ -256,8 +168,7 @@ class ServerLitCNNCifar100(pl.LightningModule):
         for c_ind, selected in enumerate(sampled_nodes):
             target = torch.full((batch_size,), c_ind, dtype=torch.int, device=device)
 
-            start_time = time.time()
-
+            # start_time = time.time()
             node_maps = [
                 self.ensemble_cams[node_ind].generate_from_logits(
                     batch_logits[node_ind],
@@ -265,7 +176,6 @@ class ServerLitCNNCifar100(pl.LightningModule):
                 )
                 for node_ind in selected
             ]
-
             # print(f"--- {(time.time() - start_time):.4f} seconds ---")
 
             server_cam = self.server_cam.generate_from_logits(
@@ -322,24 +232,6 @@ class ServerLitCNNCifar100(pl.LightningModule):
             * T
             * T
         )
-
-    def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        val_loss = self.criterion(y_hat, y)
-
-        self.val_acc(y_hat, y)
-        self.log("val_acc", self.val_acc, on_step=True, on_epoch=True)
-        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
-
-    def test_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        test_loss = self.criterion(y_hat, y)
-
-        self.test_acc(y_hat, y)
-        self.log("test_acc", self.test_acc, on_step=True, on_epoch=True)
-        self.log("test_loss", test_loss, on_step=True, on_epoch=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.cnn.parameters(), lr=1e-3)
