@@ -10,3 +10,5 @@ archive/
 models/
 
 *.jpg
+
+.python-version
