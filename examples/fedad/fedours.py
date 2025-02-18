@@ -75,7 +75,8 @@ class FedAdServer(LitModel):
         x, y = batch
         y_hat = self(x)
 
-        batch_logits = [ens.forward(x) for ens in self.ensemble]
+        with torch.no_grad():
+            batch_logits = [ens.forward(x) for ens in self.ensemble]
 
         ens_logits = utils.alternative_avg(
             raw_logits=batch_logits,
@@ -83,8 +84,6 @@ class FedAdServer(LitModel):
             num_classes=10,
             num_nodes=len(self.ensemble),
         )
-
-        del batch_logits
 
         logits_loss = self.dist_criterion(y_hat, ens_logits, T=3)
 
@@ -212,8 +211,13 @@ def run(args: Namespace):
             ensemble=ens,
             distillation=args.distill,
         ),
-        CIFAR100Dataset(batch_size=args.batch, partition=BalancedFraction(percent=0.8)),
+        CIFAR100Dataset(
+            batch_size=args.batch,
+            partition=BalancedFraction(percent=0.8),
+            seed=args.seed,
+        ),
         num_workers=args.workers,
+        seed=args.seed,
         hp=args,
     ).setup()
 

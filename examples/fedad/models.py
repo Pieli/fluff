@@ -108,7 +108,6 @@ class ServerLitCNNCifar100(LitModel):
             top=2,
         )
 
-        del batch_logits
         # print(f"#> cam_generation {(time.time() - cam_generation_start):.4f}s")
 
         union_loss = utils.loss_union(

@@ -9,8 +9,7 @@ from abc import ABC, abstractmethod
 from .partitions.partitions import Partition
 
 
-def enable_deterministic():
-    seed = 42
+def enable_deterministic(seed=42):
     logging.info(f"Fixing randomness with seed {seed}")
     np.random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -59,7 +58,7 @@ class NebulaDataset(Dataset, ABC):
         # the same classes are used in training and testing
         self.class_distribution = None
 
-        enable_deterministic()
+        enable_deterministic(seed=self.seed)
         self.initialize_dataset()
 
     @abstractmethod
