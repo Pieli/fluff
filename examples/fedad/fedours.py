@@ -42,7 +42,7 @@ class FedAdServer(LitModel):
         super().__init__(model, num_classes=10, lr=1e-3)
 
         assert isinstance(model, nn.Module)
-        assert distillation in ("kl", "l2", "l2_new")
+        assert distillation in ("kl", "l2", "l2_new", "l1")
 
         self.cnn = model
         self.ensemble = nn.ModuleList(ensemble)
@@ -55,6 +55,8 @@ class FedAdServer(LitModel):
             self.dist_criterion = utils.l2_distillation_new  # type: ignore
         elif distillation == "l2":
             self.dist_criterion = utils.l2_distillation  # type: ignore
+        elif distillation == "l1":
+            self.dist_criterion = utils.l1_distillation  # type: ignore
         else:
             raise Exception("Some input is wrong")
 

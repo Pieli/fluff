@@ -5,6 +5,19 @@ import torch.nn.functional as F
 from typing import Iterable, cast
 
 
+def l1_distillation(
+    server_log: torch.Tensor,
+    ensemble_log: torch.Tensor,
+    T: int = 3,
+) -> torch.Tensor:
+
+    return F.l1_loss(
+        server_log,
+        ensemble_log,
+        reduction="mean",
+    )
+
+
 def l2_distillation(
     server_log: torch.Tensor,
     ensemble_log: torch.Tensor,
