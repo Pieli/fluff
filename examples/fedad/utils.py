@@ -92,6 +92,9 @@ def sample_with_top(
         top_places = weights.sort(dim=0, descending=True).indices[:top, c, :].squeeze(1)
         sampled.append(top_places.tolist())
 
+        if num_out_samples == 0:
+            continue
+
         # create candidates
         pool = [cand for cand in range(weights.size(0)) if cand not in top_places]
 
@@ -111,7 +114,7 @@ def sample_with_top(
         p = [prob / probs_sum for prob in pool_probs_raw]
 
         # single 1 + all zero case
-        if 1.0 in p:
+        if 1.0 in p and len(p) > 1:
             rest = 0.05 / (len(p) - 1)
             p = [0.95 if val == 1 else rest for val in p]
 

@@ -247,37 +247,60 @@ def test_node_weights_all_equal():
 def test_sample_with_top_simple():
     nodes = 3
     classes = 3
+    num_out = 1
+    top = 1
 
     node_statistics = torch.ones(nodes, classes) + torch.eye(nodes)
     node_statistics = node_statistics.unsqueeze(2)
+    print(node_statistics)
     print(node_statistics.shape)
 
     weights = utils.node_weights(node_statistics, classes, nodes)
-    samples = utils.sample_with_top(weights, num_out_samples=1, top=2)
+    print(weights)
+    samples = utils.sample_with_top(weights, num_out_samples=num_out, top=top)
 
     print(samples)
     for ind, sam in enumerate(samples):
         assert sam[0] == ind
-        assert len(sam) == 3
-        assert sum(sam) == 3
+        assert len(sam) == num_out + top
 
 
 def test_sample_with_top_simple_2():
     nodes = 6
     classes = 6
     num_out = 3
+    top = 1
 
     node_statistics = torch.ones(nodes, classes) + torch.eye(nodes)
     node_statistics = node_statistics.unsqueeze(2)
     print(node_statistics.shape)
 
     weights = utils.node_weights(node_statistics, classes, nodes)
-    samples = utils.sample_with_top(weights, num_out_samples=num_out, top=2)
+    samples = utils.sample_with_top(weights, num_out_samples=num_out, top=top)
 
     print(samples)
     for ind, sam in enumerate(samples):
         assert sam[0] == ind
-        assert len(sam) == num_out + 2
+        assert len(sam) == num_out + top
+
+
+def test_sample_with_top_without_num():
+    nodes = 6
+    classes = 6
+    num_out = 0
+    top = 1
+
+    node_statistics = torch.ones(nodes, classes) + torch.eye(nodes)
+    node_statistics = node_statistics.unsqueeze(2)
+    print(node_statistics.shape)
+
+    weights = utils.node_weights(node_statistics, classes, nodes)
+    samples = utils.sample_with_top(weights, num_out_samples=num_out, top=top)
+
+    print(samples)
+    for ind, sam in enumerate(samples):
+        assert sam[0] == ind
+        assert len(sam) == num_out + top
 
 
 def test_sample_with_top_simple_3():
