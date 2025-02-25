@@ -89,7 +89,8 @@ class ServerLitCNNCifar100(LitModel):
         x, y = batch
         y_hat = self(x)
 
-        batch_logits = [ens.forward(x) for ens in self.ensemble]
+        with torch.no_grad():
+            batch_logits = [ens.forward(x) for ens in self.ensemble]
 
         ens_logits = utils.alternative_avg(
             raw_logits=batch_logits,
@@ -100,6 +101,7 @@ class ServerLitCNNCifar100(LitModel):
 
         logits_loss = self.dist_criterion(y_hat, ens_logits, T=3)
 
+        """
         # cam_generation_start = time.time()
         class_cams, server_cams = self.cam_generation(
             batch_logits=batch_logits,
@@ -123,14 +125,16 @@ class ServerLitCNNCifar100(LitModel):
         )
 
         total_loss = logits_loss + union_loss + inter_loss
+        """
+        total_loss = logits_loss
 
         self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
         self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
-        self.log("train_union_loss", union_loss, on_step=True, on_epoch=True)
-        self.log("train_inter_loss", inter_loss, on_step=True, on_epoch=True)
+        # self.log("train_union_loss", union_loss, on_step=True, on_epoch=True)
+        # self.log("train_inter_loss", inter_loss, on_step=True, on_epoch=True)
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
 
         return total_loss

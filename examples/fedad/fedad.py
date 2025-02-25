@@ -33,9 +33,12 @@ def run(args: Namespace):
     exp_name = generate_model_run_name()
 
     # Training
-    print(args)
+    print("[*]", exp_name)
+    print("[+]", args)
+
     # ens, stats = training_phase(args, name="five-resnet-alpha-0_01", save=True)
-    ens, stats = load_models("./models/five-resnet-alpha-0_5", lam_resnet)
+    # ens, stats = load_models("./models/five-resnet-alpha-0_5", lam_resnet)
+    ens, stats = load_models("./models/05-remote", lam_resnet)
 
     s_model = lam_resnet()
 

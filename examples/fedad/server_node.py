@@ -137,19 +137,19 @@ def training_phase(
     return [node.get_model().cnn for node in nodes], stats
 
 
-def load_stats(path: str) -> list[torch.Tensor]:
+def load_stats(path: str, model_names: list[str]) -> list[torch.Tensor]:
     assert os.path.isfile(path)
     with open(path, "r") as f:
         result = json.load(f)
 
-    return list(torch.tensor(elem).unsqueeze(dim=1) for elem in result.values())
+    return list(torch.tensor(result[mod]).unsqueeze(dim=1) for mod in model_names)
 
 
 def load_models(
     dir: str,
     model: Callable,
 ) -> tuple[list[nn.Module], list[torch.Tensor]]:
-    names = os.listdir(dir)
+    names = sorted(os.listdir(dir))
 
     if "statistics" in names:
         names.remove("statistics")
@@ -163,7 +163,7 @@ def load_models(
         node = model()
         node.load_state_dict(torch.load(path, weights_only=True))
         nodes.append(cast(nn.Module, node))
-    return nodes, load_stats(f"{dir}/statistics")
+    return nodes, load_stats(f"{dir}/statistics", names)
 
 
 def lam_cnn():
