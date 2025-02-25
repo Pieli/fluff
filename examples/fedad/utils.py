@@ -345,11 +345,11 @@ def loss_intersection(
     # weight the intersection with the attention map mask
     # Sum up the weighted intersection map
     weighted = intersections * masking(attentions, rho=10, b=0.6)
-    weighted_sum = weighted.sum(dim=(1, 2))
+    weighted_sum = weighted.sum(dim=(1, 2, 3))
 
     # Sum of pixels in the non-weighted intersection
     # epsilon is added to avoid division by zero
-    class_sums = intersections.sum(dim=(1, 2))
+    class_sums = intersections.sum(dim=(1, 2, 3))
     non_zero_class_sum = torch.where(
         class_sums == 0.0,
         torch.ones_like(class_sums) * torch.finfo(torch.float64).eps,
@@ -357,6 +357,7 @@ def loss_intersection(
     )
 
     result = (-1 / num_classes) * (weighted_sum / non_zero_class_sum).sum()
+    # print(result)
     return result
 
 
@@ -366,17 +367,16 @@ def loss_union(unions: torch.Tensor, attentions: torch.Tensor, num_classes=10):
     unions: torch.Size[num_classes, height, width]
     attentions: torch.Size[num_classes, height, width]
     """
-    assert unions.size(0) == num_classes
-    assert attentions.size(0) == num_classes
+    assert unions.shape == attentions.shape
 
     # weight the intersection with the attention map mask
     # Sum up the weighted intersection map
     weighted = attentions * masking(unions, rho=10, b=0.3)
-    weighted_sum = weighted.sum(dim=(1, 2))
+    weighted_sum = weighted.sum(dim=(1, 2, 3))
 
     # Sum of pixels in the non-weighted intersection
     # epsilon is added to avoid division by zero
-    class_sums = attentions.sum(dim=(1, 2))
+    class_sums = attentions.sum(dim=(1, 2, 3))
     non_zero_class_sum = torch.where(
         class_sums == 0.0,
         torch.ones_like(class_sums) * torch.finfo(torch.float64).eps,
@@ -384,4 +384,5 @@ def loss_union(unions: torch.Tensor, attentions: torch.Tensor, num_classes=10):
     )
 
     result = (-1 / num_classes) * (weighted_sum / non_zero_class_sum).sum()
+    # print("uinion", result)
     return result

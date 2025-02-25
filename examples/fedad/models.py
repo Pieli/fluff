@@ -105,20 +105,20 @@ class ServerLitCNNCifar100(LitModel):
             batch_logits=batch_logits,
             server_logits=y_hat,
             num_samples=1,
-            top=2,
+            top=1,
         )
 
         # print(f"#> cam_generation {(time.time() - cam_generation_start):.4f}s")
 
         union_loss = utils.loss_union(
-            class_cams.amax(dim=(1, 2)),
-            server_cams.amax(dim=(1,)),
+            class_cams.amax(dim=(1,)),  # reduce nodes dimension
+            server_cams,
             num_classes=10,
         )
 
         inter_loss = utils.loss_intersection(
-            class_cams.amin(dim=(1, 2)),
-            server_cams.amin(dim=(1,)),
+            class_cams.amin(dim=(1,)),  # reduce nodes dimension
+            server_cams,
             num_classes=10,
         )
 

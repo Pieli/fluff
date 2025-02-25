@@ -98,8 +98,8 @@ def test_intersection_simple():
 
 
 def test_intersection_loss_no_outliers():
-    inter = torch.ones(1, 3, 3)
-    att = torch.ones(1, 3, 3) * 6
+    inter = torch.ones(1, 1, 3, 3)
+    att = torch.ones(1, 1, 3, 3) * 6
 
     result = utils.loss_intersection(inter, att, num_classes=1)
 
@@ -108,12 +108,12 @@ def test_intersection_loss_no_outliers():
 
 
 def test_intersection_loss_half_inliers_simple():
-    inter = torch.zeros(1, 2, 2)
-    inter[:, 1, :] = 1
+    inter = torch.zeros(1, 1, 2, 2)
+    inter[:, :, 1, :] = 1
     print(inter)
 
-    att = torch.zeros(1, 2, 2)
-    att[:, 1, 1] = 6
+    att = torch.zeros(1, 1, 2, 2)
+    att[:, :, 1, 1] = 6
     print(att)
 
     result = utils.loss_intersection(inter, att, num_classes=1)
@@ -123,10 +123,10 @@ def test_intersection_loss_half_inliers_simple():
 
 
 def test_intersection_zero_division():
-    inter = torch.zeros(1, 2, 2)
+    inter = torch.zeros(1, 1, 2, 2)
     print(inter)
 
-    att = torch.zeros(1, 2, 2)
+    att = torch.zeros(1, 1, 2, 2)
     print(att)
 
     result = utils.loss_intersection(inter, att, num_classes=1)
@@ -138,12 +138,12 @@ def test_intersection_zero_division():
 # result would be -0.5 (error)
 def test_intersection_loss_half_inliers():
     num_class = 2
-    inter = torch.zeros(num_class, 2, 2)
-    inter[:, 1, :] = 0.6
+    inter = torch.zeros(num_class, 1, 2, 2)
+    inter[:, :, 1, :] = 0.6
     print(inter)
 
-    att = torch.zeros(num_class, 2, 2)
-    att[:, 1, 1] = 6
+    att = torch.zeros(num_class, 1, 2, 2)
+    att[:, :, 1, 1] = 6
     print(att)
 
     result = utils.loss_intersection(inter, att, num_classes=num_class)
@@ -154,11 +154,11 @@ def test_intersection_loss_half_inliers():
 # result would be -0 (error)
 def test_intersection_loss_all_outliers():
     num_class = 1
-    inter = torch.zeros(num_class, 2, 2)
-    inter[:, 0, :] = 0.5
+    inter = torch.zeros(num_class, 1, 2, 2)
+    inter[:, :, 0, :] = 0.5
 
-    att = torch.zeros(num_class, 2, 2)
-    att[:, 1, :] = 0.9
+    att = torch.zeros(num_class, 1, 2, 2)
+    att[:, :, 1, :] = 0.9
 
     result = utils.loss_intersection(inter, att, num_classes=num_class)
 
@@ -167,8 +167,8 @@ def test_intersection_loss_all_outliers():
 
 def test_union_loss_no_outliers():
     num_class = 1
-    union = torch.ones(num_class, 3, 3) * 6
-    att = torch.ones(num_class, 3, 3)
+    union = torch.ones(num_class, 1, 3, 3) * 6
+    att = torch.ones(num_class, 1, 3, 3)
     result = utils.loss_union(union, att, num_classes=num_class)
 
     assert torch.isclose(result, torch.tensor([-1.0]), atol=5e-2).item()
@@ -176,11 +176,11 @@ def test_union_loss_no_outliers():
 
 def test_union_loss_half_inliers():
     num_class = 1
-    union = torch.zeros(num_class, 2, 2)
-    union[:, :, 1] = 6
+    union = torch.zeros(num_class, 1, 2, 2)
+    union[:, :, :, 1] = 6
 
-    att = torch.zeros(num_class, 2, 2)
-    att[:, 1, :] = 0.9
+    att = torch.zeros(num_class, 1, 2, 2)
+    att[:, :, 1, :] = 0.9
 
     result = utils.loss_union(union, att, num_classes=num_class)
 
@@ -189,11 +189,11 @@ def test_union_loss_half_inliers():
 
 def test_union_loss_all_outliers():
     num_class = 1
-    union = torch.zeros(num_class, 2, 2)
-    union[:, 0, :] = 0.5
+    union = torch.zeros(num_class, 1, 2, 2)
+    union[:, :, 0, :] = 0.5
 
-    att = torch.zeros(num_class, 2, 2)
-    att[:, 1, :] = 0.9
+    att = torch.zeros(num_class, 1, 2, 2)
+    att[:, :, 1, :] = 0.9
 
     result = utils.loss_union(union, att, num_classes=num_class)
 
@@ -202,10 +202,10 @@ def test_union_loss_all_outliers():
 
 def test_union_loss_all_outliers_part_2():
     num_class = 1
-    union = torch.zeros(num_class, 2, 2)
+    union = torch.zeros(num_class, 1, 2, 2)
 
-    att = torch.zeros(num_class, 2, 2)
-    att[:, 1, :] = 0.9
+    att = torch.zeros(num_class, 1, 2, 2)
+    att[:, :, 1, :] = 0.9
 
     result = utils.loss_union(union, att, num_classes=num_class)
 
