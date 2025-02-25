@@ -12,10 +12,10 @@ from gradcam import GradCAM
 from server_node import (
     lam_cnn,  # noqa: F401
     lam_resnet,
-    training_phase,  # noqa: F401
-    load_models,
     ServerNode,
 )
+
+from base_trainer import load_models
 
 import sys
 
@@ -188,8 +188,7 @@ def run(args: Namespace):
     # Training
 
     print(args)
-    # ens, stats = training_phase(args, name="five-resnet-alpha-0_01", save=True)
-    ens, stats = load_models("./models/five-resnet-alpha-0_5", lam_resnet)
+    ens, stats = load_models(args.base, lam_resnet)
 
     s_model = lam_resnet()
 

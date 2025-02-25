@@ -13,8 +13,7 @@ from fluff.utils import timer
 from fluff.datasets import CIFAR100Dataset
 from fluff.datasets.partitions import BalancedFraction
 
-from models import ServerLitCNNCifar100
-
+from models import ServerLitCifar100LogitsOnly
 from server_node import (
     lam_cnn,  # noqa: F401
     lam_resnet,
@@ -25,7 +24,7 @@ from base_trainer import load_models
 
 
 def generate_model_run_name() -> str:
-    return f"Fedad_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
+    return f"tiny-Fedad_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
 
 
 @timer
@@ -51,7 +50,7 @@ def run(args: Namespace):
     server = ServerNode(
         "server",
         exp_name,
-        ServerLitCNNCifar100(
+        ServerLitCifar100LogitsOnly(
             s_model,
             ensemble=ens,
             distillation=args.distill,

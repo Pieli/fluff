@@ -3,6 +3,9 @@ from argparse import ArgumentParser
 import fedad
 import fedavg
 import fedours
+import tinyad
+
+import base_trainer
 
 parser = ArgumentParser()
 
@@ -22,8 +25,10 @@ parser.add_argument("-w", "--workers", type=int, default=4)
 parser.add_argument("--dev-batches", type=int, default=None)
 parser.add_argument("--seed", type=int, default=42)
 
+parser.add_argument("--base", type=str, default="five-resnet-alpha-0_5")
 
 args = parser.parse_args()
+
 
 match (args.mode):
     case "fedavg":
@@ -32,5 +37,9 @@ match (args.mode):
         fedad.run(args)
     case "fedours":
         fedours.run(args)
+    case "tinyad":
+        tinyad.run(args)
+    case "train":
+        base_trainer.train(args)
     case _:
         print("Arguement [mod] was not valid")
