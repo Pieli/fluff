@@ -3,6 +3,8 @@ import torch
 from torch import nn
 from argparse import Namespace
 
+import lightning as pl
+
 import os
 import sys
 
@@ -21,6 +23,8 @@ from resnet import ResNet_cifar
 def training_phase(
     args: Namespace, name: str, save=False
 ) -> tuple[list[nn.Module], list[torch.Tensor]]:
+
+    pl.seed_everything(args.seed, workers=True)
 
     # split out ./models
     name = os.path.split(name)[1]
@@ -48,6 +52,7 @@ def training_phase(
                     alpha=args.alpha,
                 ),
             ),
+            seed=args.seed,
             num_workers=args.workers,
             hp=args,
         ).setup()
