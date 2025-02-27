@@ -32,7 +32,7 @@ class Node:
 
         self._test_trainer: Optional[pl.Trainer] = None
 
-        self._logger = logger.TensorBoardLogger(
+        self._logger = logger.FluffTensorBoardLogger(
             f"./fluff_logs/{experiement_name}",
             self._name,
             type(self._model).__name__,
@@ -96,7 +96,7 @@ class Node:
             fast_dev_run=dev_runs,
             logger=self._logger,
             deterministic=True,
-            enable_progress_bar=True,
+            enable_progress_bar= (not isinstance(self._logger, logger.FluffTensorBoardLogger,)),
             enable_checkpointing=True,
             callbacks=callbacks,
             strategy=strat,
