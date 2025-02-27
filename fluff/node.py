@@ -81,6 +81,30 @@ class Node:
 
         return self
 
+    def tune(self, min_lr: int, max_lr: int, num_training: int) -> None:
+
+        import matplotlib
+        from lightning.pytorch.tuner import Tuner
+
+        matplotlib.use("QtAgg")
+
+        trainer = pl.Trainer()
+
+        tuner = Tuner(trainer)
+
+        lr_finder = tuner.lr_find(
+            model=self._model,
+            train_dataloaders=self.train_loader,
+            mode="linear",
+            min_lr=min_lr,
+            max_lr=max_lr,
+            num_training=num_training,
+        )
+
+        print(f"[->] Suggested value {lr_finder.suggestion()}")  # type: ignore
+
+        return lr_finder.results  # type: ignore
+
     def train(
         self,
         epochs: int,
@@ -96,7 +120,12 @@ class Node:
             fast_dev_run=dev_runs,
             logger=self._logger,
             deterministic=True,
-            enable_progress_bar= (not isinstance(self._logger, logger.FluffTensorBoardLogger,)),
+            enable_progress_bar=(
+                not isinstance(
+                    self._logger,
+                    logger.FluffTensorBoardLogger,
+                )
+            ),
             enable_checkpointing=True,
             callbacks=callbacks,
             strategy=strat,

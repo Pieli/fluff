@@ -52,8 +52,9 @@ class ServerLitCNNCifar100(LitModel):
         model: nn.Module,
         ensemble: list[nn.Module],
         distillation: str,
+        lr: float = 1e-3,
     ):
-        super().__init__(model, num_classes=10, lr=1e-3)
+        super().__init__(model, num_classes=10, lr=lr)
 
         assert isinstance(model, nn.Module)
         assert distillation in ("kl", "l2", "l2_new")
@@ -180,7 +181,7 @@ class ServerLitCNNCifar100(LitModel):
         return torch.stack(class_maps), torch.stack(server_maps)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.cnn.parameters(), lr=1e-3)
+        return torch.optim.Adam(self.cnn.parameters(), lr=self.lr)
 
     def set_count_statistics(self, counts: list[torch.Tensor]):
         self._count_stats = tuple(stat.cuda() for stat in counts)

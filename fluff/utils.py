@@ -1,6 +1,9 @@
 import functools
 import time
 
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 
 def timer(func):
     """Print the runtime of the decorated function"""
@@ -35,3 +38,39 @@ def print_args(func):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def plot_tuning(inputs: list[dict], x_label: str):
+    """
+    Example:
+        plot_tuning([{label: ..., lr: ..., loss: ... }, {...}], x_label = "lr")
+    """
+    assert isinstance(inputs, list)
+    assert len(inputs) > 0
+
+    sns.set(style="darkgrid")
+
+    plt.figure(figsize=(8, 5))
+
+    labels = list(inputs[0].keys())
+    labels.remove(x_label)
+    labels.remove("label")
+
+    if len(labels) > 1:
+        raise ValueError(f"Too many keys provided: found {len(labels)}")
+
+    y_label = labels[0]
+
+    for elem in inputs:
+        if x_label not in elem:
+            raise ValueError(f"x_label: {x_label} not in {elem}")
+
+        if y_label not in elem:
+            raise ValueError(f"y_label: {y_label} not in {elem}")
+
+        sns.lineplot(x=elem[x_label], y=elem[y_label], label=elem["label"])
+
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend()
+    plt.show()

@@ -9,7 +9,7 @@ import sys
 
 sys.path.append("../..")
 
-from fluff.utils import timer
+from fluff.utils import timer, plot_tuning
 from fluff.datasets import CIFAR100Dataset
 from fluff.datasets.partitions import BalancedFraction
 
