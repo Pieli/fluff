@@ -1,6 +1,7 @@
 import functools
 import time
 
+import time
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -40,7 +41,7 @@ def print_args(func):
     return wrapper
 
 
-def plot_tuning(inputs: list[dict], x_label: str):
+def plot_tuning(inputs: list[dict], x_label: str, show=True, save=False):
     """
     Example:
         plot_tuning([{label: ..., lr: ..., loss: ... }, {...}], x_label = "lr")
@@ -73,4 +74,12 @@ def plot_tuning(inputs: list[dict], x_label: str):
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()
-    plt.show()
+
+    if show:
+        plt.show()
+
+    if save:
+        # file = "lr_tune_" + str(round(time.time())) + ".png"
+        file = "lr_tune.png"
+        print(f"[*] Saving to file... {file}")
+        plt.savefig(file)

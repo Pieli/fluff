@@ -86,7 +86,10 @@ class Node:
         import matplotlib
         from lightning.pytorch.tuner import Tuner
 
-        matplotlib.use("QtAgg")
+        try:
+            matplotlib.use("QtAgg")
+        except:
+            pass
 
         trainer = pl.Trainer()
 
