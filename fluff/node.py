@@ -8,7 +8,6 @@ from typing import Union, Optional, Any
 from .datasets.dataset import NebulaDataset
 
 from fluff import logger
-
 from argparse import Namespace
 
 
@@ -22,6 +21,7 @@ class Node:
         num_workers: int = 2,
         seed: Optional[int] = None,
         hp: Optional[Namespace] = None,
+        logger_cls: TensorBoardLogger = None,
     ) -> None:
 
         self._name = name
@@ -32,7 +32,8 @@ class Node:
 
         self._test_trainer: Optional[pl.Trainer] = None
 
-        self._logger = logger.FluffTensorBoardLogger(
+        logger_class = logger_cls or TensorBoardLogger
+        self._logger = logger_class(
             f"./fluff_logs/{experiement_name}",
             self._name,
             type(self._model).__name__,
