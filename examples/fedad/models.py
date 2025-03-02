@@ -194,8 +194,9 @@ class ServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
         model: nn.Module,
         ensemble: list[nn.Module],
         distillation: str,
+        lr: float = 1e-3,
     ):
-        super().__init__(model, ensemble, distillation)
+        super().__init__(model, ensemble, distillation, lr)
         del self.ensemble_cams
         del self.server_cam
 
@@ -222,6 +223,112 @@ class ServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
+        self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
+
+        return total_loss
+
+
+class ServerLitCifar100InterOnly(ServerLitCNNCifar100):
+    def __init__(
+        self,
+        model: nn.Module,
+        ensemble: list[nn.Module],
+        distillation: str,
+        lr: float = 1e-3,
+    ):
+        super().__init__(model, ensemble, distillation, lr)
+
+    def training_step(self, batch, batch_idx):
+        x, _ = batch
+        y_hat = self(x)
+
+        batch_logits = [ens.forward(x) for ens in self.ensemble]
+
+        ens_logits = utils.alternative_avg(
+            raw_logits=batch_logits,
+            raw_statistics=self._count_stats,
+            num_classes=10,
+            num_nodes=len(self.ensemble),
+        )
+
+        logits_loss = self.dist_criterion(y_hat, ens_logits, T=3)
+
+        # cam_generation_start = time.time()
+        class_cams, server_cams = self.cam_generation(
+            batch_logits=batch_logits,
+            server_logits=y_hat,
+            num_samples=1,
+            top=1,
+        )
+
+        # print(f"#> cam_generation {(time.time() - cam_generation_start):.4f}s")
+
+        inter_loss = utils.loss_intersection(
+            class_cams.amin(dim=(1,)),  # reduce nodes dimension
+            server_cams,
+            num_classes=10,
+        )
+
+        total_loss = logits_loss + inter_loss
+
+        self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
+        self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
+        self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
+        self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
+        self.log("train_inter_loss", inter_loss, on_step=True, on_epoch=True)
+        self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
+
+        return total_loss
+
+
+class ServerLitCifar100UnionOnly(ServerLitCNNCifar100):
+    def __init__(
+        self,
+        model: nn.Module,
+        ensemble: list[nn.Module],
+        distillation: str,
+        lr: float = 1e-3,
+    ):
+        super().__init__(model, ensemble, distillation, lr)
+
+    def training_step(self, batch, batch_idx):
+        x, _ = batch
+        y_hat = self(x)
+
+        batch_logits = [ens.forward(x) for ens in self.ensemble]
+
+        ens_logits = utils.alternative_avg(
+            raw_logits=batch_logits,
+            raw_statistics=self._count_stats,
+            num_classes=10,
+            num_nodes=len(self.ensemble),
+        )
+
+        logits_loss = self.dist_criterion(y_hat, ens_logits, T=3)
+
+        # cam_generation_start = time.time()
+        class_cams, server_cams = self.cam_generation(
+            batch_logits=batch_logits,
+            server_logits=y_hat,
+            num_samples=1,
+            top=1,
+        )
+
+        union_loss = utils.loss_union(
+            class_cams.amax(dim=(1,)),  # reduce nodes dimension
+            server_cams,
+            num_classes=10,
+        )
+
+        total_loss = logits_loss + union_loss
+
+        self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
+        self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
+        self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
+        self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
+        self.log("train_union_loss", union_loss, on_step=True, on_epoch=True)
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
 
         return total_loss
