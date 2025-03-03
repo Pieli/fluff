@@ -105,3 +105,13 @@ class NebulaDataset(Dataset, ABC):
 
     def get_batch_size(self):
         return self.batch_size
+
+    def count_train(self, num_classes=10):
+        return torch.bincount(
+            torch.index_select(
+                torch.tensor(self.train_set.targets),
+                0,
+                torch.tensor(self.train_indices_map),
+            ),
+            minlength=num_classes,
+        )
