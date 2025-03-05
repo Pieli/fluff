@@ -78,6 +78,21 @@ class LitModel(pl.LightningModule):
             num_classes=num_classes,
         )
 
+        self.train_f1 = tm.classification.F1Score(
+            task="multiclass",
+            num_classes=num_classes,
+        )
+
+        self.val_f1 = tm.classification.F1Score(
+            task="multiclass",
+            num_classes=num_classes,
+        )
+
+        self.test_f1 = tm.classification.F1Score(
+            task="multiclass",
+            num_classes=num_classes,
+        )
+
     def forward(self, x):
         return self.cnn(x)
 
@@ -87,7 +102,9 @@ class LitModel(pl.LightningModule):
         loss = self.criterion(y_hat, y)
 
         self.train_acc(y_hat, y)
+        self.train_f1(y_hat, y)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_loss", loss, on_step=False, on_epoch=True)
         return loss
 
@@ -97,7 +114,9 @@ class LitModel(pl.LightningModule):
         val_loss = self.criterion(y_hat, y)
 
         self.val_acc(y_hat, y)
+        self.val_f1(y_hat, y)
         self.log("val_acc", self.val_acc, on_step=True, on_epoch=True)
+        self.log("val_f1", self.val_f1, on_step=True, on_epoch=True)
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
@@ -106,7 +125,9 @@ class LitModel(pl.LightningModule):
         test_loss = self.criterion(y_hat, y)
 
         self.test_acc(y_hat, y)
+        self.test_f1(y_hat, y)
         self.log("test_acc", self.test_acc, on_step=False, on_epoch=True)
+        self.log("test_f1", self.test_f1, on_step=False, on_epoch=True)
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):

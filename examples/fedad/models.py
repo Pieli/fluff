@@ -34,8 +34,11 @@ class LitCNN(LitModel):
         self._recorded_statistics += torch.bincount(y, minlength=10).cpu()
 
         loss = self.criterion(y_hat, y)
+
         self.train_acc(y_hat, y)
+        self.train_f1(y_hat, y)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_loss", loss, on_step=False, on_epoch=True)
         return loss
 
@@ -126,9 +129,14 @@ class ServerLitCNNCifar100(LitModel):
         total_loss = logits_loss + union_loss + inter_loss
 
         self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
-        self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
+
+        amax_hat = y_hat.argmax(dim=1)
+        amax_ens = ens_logits.argmax(dim=1)
+        self.train_acc(amax_hat, amax_ens)
+        self.train_f1(amax_hat, amax_ens)
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
         self.log("train_union_loss", union_loss, on_step=True, on_epoch=True)
         self.log("train_inter_loss", inter_loss, on_step=True, on_epoch=True)
@@ -218,10 +226,14 @@ class ServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
 
         total_loss = logits_loss
 
+        amax_hat = y_hat.argmax(dim=1)
+        amax_ens = ens_logits.argmax(dim=1)
         self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
-        self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
+        self.train_acc(amax_hat, amax_ens)
+        self.train_f1(amax_hat, amax_ens)
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
 
@@ -271,10 +283,14 @@ class ServerLitCifar100InterOnly(ServerLitCNNCifar100):
 
         total_loss = logits_loss + inter_loss
 
+        amax_hat = y_hat.argmax(dim=1)
+        amax_ens = ens_logits.argmax(dim=1)
         self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
-        self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
+        self.train_acc(amax_hat, amax_ens)
+        self.train_f1(amax_hat, amax_ens)
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
         self.log("train_inter_loss", inter_loss, on_step=True, on_epoch=True)
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
@@ -323,12 +339,14 @@ class ServerLitCifar100UnionOnly(ServerLitCNNCifar100):
 
         total_loss = logits_loss + union_loss
 
+        amax_hat = y_hat.argmax(dim=1)
+        amax_ens = ens_logits.argmax(dim=1)
         self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
-        self.train_acc(y_hat.argmax(dim=1), ens_logits.argmax(dim=1))
+        self.train_acc(amax_hat, amax_ens)
+        self.train_f1(amax_hat, amax_ens)
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
-        self.log("train_union_loss", union_loss, on_step=True, on_epoch=True)
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
-
         return total_loss
