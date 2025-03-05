@@ -4,6 +4,7 @@ import fedad
 import fedavg
 import fedours
 import tinyad
+import tinyours
 
 import base_trainer
 
@@ -30,7 +31,6 @@ parser.add_argument("--base", type=str, default="five-resnet-alpha-0_5")
 
 args = parser.parse_args()
 
-
 match (args.mode):
     case "fedavg":
         fedavg.run(args)
@@ -40,7 +40,9 @@ match (args.mode):
         fedours.run(args)
     case "tinyad":
         tinyad.run(args)
+    case "tinyours":
+        tinyours.run(args)
     case "train":
-        base_trainer.train(args)
+        base_trainer.training_phase(args, args.base, save=True)
     case _:
         print("Arguement [mod] was not valid")

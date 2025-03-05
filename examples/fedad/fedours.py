@@ -63,26 +63,6 @@ def run(args: Namespace):
 
     # Distillation
 
-    """
-    server = ServerNode(
-        "server",
-        exp_name,
-        ServerLitCifar100LogitsOnly(
-            s_model,
-            ensemble=ens,
-            distillation=args.distill,
-        ),
-        CIFAR100Dataset(
-            batch_size=args.batch,
-            partition=BalancedFraction(percent=0.8),
-            seed=args.seed,
-        ),
-        num_workers=args.workers,
-        seed=args.seed,
-        hp=args,
-    ).setup()
-    """
-
     def adjust_bias(model, stats):
         print(stats)
         print(model.classifier.bias)
@@ -115,12 +95,13 @@ def run(args: Namespace):
 
         print(f"[+>] Evaluating node number: {node}")
         server = Node(
-            "server",
+            f"server-{node}",
             exp_name,
             ServerLitCifar100LogitsOnly(
                 cs_model,
                 ensemble=ens,
                 distillation=args.distill,
+                lr=args.lr,
             ),
             dataset,
             num_workers=args.workers,
@@ -137,3 +118,4 @@ def run(args: Namespace):
             skip_val=False,
             skip_test=False,
         )
+

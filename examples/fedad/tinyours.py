@@ -1,30 +1,42 @@
-# pylint: disable=import-error
-
+import torch
+from torch import nn
+import torchmetrics
 import lightning as pl
 from argparse import Namespace
 from datetime import datetime
 
+from typing import Sequence
 
-import sys
-
-sys.path.append("../..")
-
-from fluff.utils import timer
-from fluff.datasets import CIFAR100Dataset
-from fluff.datasets.partitions import BalancedFraction
-
-from models import ServerLitCifar100LogitsOnly
+import utils
+from gradcam import GradCAM
 from server_node import (
     lam_cnn,  # noqa: F401
     lam_resnet,
     ServerNode,
 )
 
+from models import (
+    ServerLitCifar100LogitsOnly,
+    ServerLitCNNCifar100,
+    ServerLitCifar100InterOnly,
+)
+
 from base_trainer import load_models
+
+import sys
+
+sys.path.append("../..")
+
+from fluff import Node
+from fluff.utils import timer
+from fluff.datasets import CIFAR100Dataset, CIFAR10Dataset
+from fluff.datasets.partitions import BalancedFraction
+from fluff.aggregator import FedAvg
+from fluff.datasets.partitions import DirichletMap
 
 
 def generate_model_run_name() -> str:
-    return f"tiny-Fedad_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
+    return f"tiny-Fedours_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
 
 
 @timer
@@ -33,10 +45,8 @@ def run(args: Namespace):
     exp_name = generate_model_run_name()
 
     # Training
-    print("[*]", exp_name)
-    print("[+]", args)
 
-    # ens, stats = load_models("./models/five-resnet-alpha-0_5", lam_resnet)
+    print(args)
     ens, stats = load_models(args.base, lam_resnet)
 
     s_model = lam_resnet()
@@ -46,7 +56,13 @@ def run(args: Namespace):
         en.freeze_bn_affine = True  # type: ignore
         en.train(False)
 
+    # Average
+
+    aggregator = FedAvg()
+    s_model.load_state_dict(aggregator.run(ens))
+
     # Distillation
+
     server = ServerNode(
         "server",
         exp_name,
@@ -56,8 +72,13 @@ def run(args: Namespace):
             distillation=args.distill,
             lr=args.lr,
         ),
-        CIFAR100Dataset(batch_size=args.batch, partition=BalancedFraction(percent=0.8)),
+        CIFAR100Dataset(
+            batch_size=args.batch,
+            partition=BalancedFraction(percent=0.8),
+            seed=args.seed,
+        ),
         num_workers=args.workers,
+        seed=args.seed,
         hp=args,
     ).setup()
 
