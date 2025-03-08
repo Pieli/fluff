@@ -2,7 +2,36 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from typing import Iterable, cast
+from typing import Iterable, cast, Optional
+
+
+def log_softmax_mod(
+    input: torch.Tensor,
+    targets: torch.Tensor,
+    dim: Optional[int] = None,
+):
+
+    batch_size, _ = input.shape
+
+    # Clone logits to keep gradients
+    masked_logits = input.clone()
+    masked_logits[torch.arange(batch_size), targets] = float("-inf")
+
+    log = F.log_softmax(masked_logits, dim)
+    log[torch.arange(batch_size), targets] = 0.0
+    return log
+
+def softmax_mod(
+    input: torch.Tensor,
+    majority: torch.Tensor,
+    dim: Optional[int] = None,
+):
+
+    # Clone logits to keep gradients
+    masked_logits = input.clone()
+    masked_logits[:, majority] = float("-inf")
+
+    return F.softmax(masked_logits, dim)
 
 
 def l1_distillation(
