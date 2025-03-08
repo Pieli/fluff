@@ -87,8 +87,11 @@ def run(args: Namespace):
         for num in range(args.nodes)
     ]
 
+    # For the evaluation of the global model
+    # even though a partition is loaded it is not needed since the test set
+    # stays unchanged, could change DirichletMap to NullMap
     server = Node(
-        f"server",
+        "server",
         exp_name,
         LitCNN(
             model_type(),
@@ -135,6 +138,7 @@ def run(args: Namespace):
                 callbacks=[callback[ind]],
                 ckpt_path=(paths[ind] if round > 0 else None),
                 strat=MyStrat(device="cuda:0"),
+                enable_progress_bar=False,
             )
 
         new_state = agg.run([node.get_model().cnn for node in nodes])
