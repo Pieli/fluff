@@ -118,23 +118,32 @@ class Node:
         callbacks=None,
         ckpt_path=None,
         strat: Any = "auto",
+        **kwargs,
     ) -> None:
+
+        enable_prog = (
+            kprog
+            if (kprog := kwargs.get("enable_progress_bar")) is not None
+            else not isinstance(
+                self._logger,
+                logger.FluffTensorBoardLogger,
+            )
+        )
+
+        kwargs.pop("enable_progress_bar", None)
+
         trainer = pl.Trainer(
             max_epochs=epochs,
             fast_dev_run=dev_runs,
             logger=self._logger,
             deterministic=True,
-            enable_progress_bar=(
-                not isinstance(
-                    self._logger,
-                    logger.FluffTensorBoardLogger,
-                )
-            ),
+            enable_progress_bar=enable_prog,
             enable_checkpointing=True,
             callbacks=callbacks,
             strategy=strat,
             accelerator="gpu",
             devices=1,
+            **kwargs,
         )
 
         val = self.val_loader if not skip_val else None
