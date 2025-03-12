@@ -17,9 +17,10 @@ def log_softmax_mod(
     masked_logits = input.clone()
     masked_logits[torch.arange(batch_size), targets] = float("-inf")
 
-    log = F.log_softmax(masked_logits, dim)
+    log = F.log_softmax(masked_logits, dim).clone()
     log[torch.arange(batch_size), targets] = 0.0
     return log
+
 
 def softmax_mod(
     input: torch.Tensor,

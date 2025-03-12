@@ -6,6 +6,10 @@ import fedours
 import tinyad
 import tinyours
 
+import lmd
+import expours
+import combined
+
 import base_trainer
 
 parser = ArgumentParser()
@@ -38,6 +42,12 @@ match (args.mode):
         fedad.run(args)
     case "fedours":
         fedours.run(args)
+    case "expours":
+        expours.run(args)
+    case "combined":
+        combined.run(args)
+    case "lmd":
+        lmd.run(args)
     case "tinyad":
         tinyad.run(args)
     case "tinyours":

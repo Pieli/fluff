@@ -240,6 +240,90 @@ class ServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
         return total_loss
 
 
+class LMDServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
+    def __init__(
+        self,
+        model: nn.Module,
+        ensemble: list[nn.Module],
+        distillation: str,
+        counts: torch.Tensor,
+        lr: float = 1e-3,
+    ):
+        super().__init__(model, ensemble, distillation, lr)
+        del self.ensemble_cams
+        del self.server_cam
+
+        n_sum = sum(counts)
+        self.majority = torch.tensor(
+            [i for i, n in enumerate(counts) if n > 0 and n >= (n_sum / n)]
+        )
+        print(self.majority)
+
+        weights = 1 / torch.sqrt(counts + 1e-4)
+        print("weights", weights)
+        self.criterion = nn.CrossEntropyLoss(weight=weights)
+
+    def lmd_divergence(
+        self,
+        input: torch.Tensor,
+        target: torch.Tensor,
+        gold: torch.Tensor,
+        majority: torch.Tensor,
+        T: int = 3,
+    ) -> torch.Tensor:
+
+        return (
+            nn.functional.kl_div(
+                utils.log_softmax_mod(input / T, gold, dim=1),
+                utils.softmax_mod(target / T, majority, dim=1),
+                reduction="batchmean",
+            )
+            * T
+            * T
+        )
+
+    def training_step(self, batch, batch_idx):
+
+        x, y = batch
+        y_hat = self(x)
+
+        with torch.no_grad():
+            batch_logits = [ens.forward(x) for ens in self.ensemble]
+
+        ens_logits = utils.alternative_avg(
+            raw_logits=batch_logits,
+            raw_statistics=self._count_stats,
+            num_classes=10,
+            num_nodes=len(self.ensemble),
+        )
+
+        logits_loss = self.lmd_divergence(
+            input=y_hat,
+            target=ens_logits,
+            gold=y,
+            majority=self.majority,
+            T=1,
+        )
+
+        # logits_loss = self.dist_criterion(y_hat, ens_logits, T=1)
+
+        ce = self.criterion(y_hat, y)
+        total_loss = logits_loss + ce
+        # total_loss = logits_loss
+
+        amax_hat = y_hat.argmax(dim=1)
+        amax_ens = ens_logits.argmax(dim=1)
+        self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
+        self.train_acc(amax_hat, amax_ens)
+        self.train_f1(amax_hat, amax_ens)
+        self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
+        self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
+        self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
+        self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
+        return total_loss
+
+
 class ServerLitCifar100InterOnly(ServerLitCNNCifar100):
     def __init__(
         self,
