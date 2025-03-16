@@ -105,7 +105,7 @@ def run(args: Namespace):
         ).setup()
 
         ce_node.train(
-            args.rounds,
+            args.epochs,
             dev_runs=args.dev_batches,
             skip_val=False,
             skip_test=False,
@@ -136,5 +136,3 @@ def run(args: Namespace):
             skip_val=False,
             skip_test=False,
         )
-
-        break

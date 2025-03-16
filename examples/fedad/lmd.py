@@ -117,4 +117,3 @@ def run(args: Namespace):
             skip_val=False,
             skip_test=False,
         )
-        break
