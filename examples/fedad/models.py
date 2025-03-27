@@ -240,6 +240,52 @@ class ServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
         return total_loss
 
 
+class ServerCifar10CEandLogits(ServerLitCNNCifar100):
+    def __init__(
+        self,
+        model: nn.Module,
+        ensemble: list[nn.Module],
+        distillation: str,
+        lr: float = 1e-3,
+    ):
+        super().__init__(model, ensemble, distillation, lr)
+        del self.ensemble_cams
+        del self.server_cam
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+
+        with torch.no_grad():
+            batch_logits = [ens.forward(x) for ens in self.ensemble]
+
+        ens_logits = utils.alternative_avg(
+            raw_logits=batch_logits,
+            raw_statistics=self._count_stats,
+            num_classes=10,
+            num_nodes=len(self.ensemble),
+        )
+
+        ce_loss = self.criterion(y_hat, y)
+        logits_loss = self.dist_criterion(y_hat, ens_logits, T=3)
+
+        total_loss = ce_loss + logits_loss
+
+        amax_hat = y_hat.argmax(dim=1)
+        amax_ens = ens_logits.argmax(dim=1)
+        self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
+        self.train_acc(amax_hat, amax_ens)
+        self.train_f1(amax_hat, amax_ens)
+        self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
+        self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
+        self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
+        self.log("train_ce_loss", ce_loss, on_step=False, on_epoch=True)
+        self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
+
+        return total_loss
+
+
 class LMDServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
     def __init__(
         self,
@@ -259,9 +305,10 @@ class LMDServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
         )
         print(self.majority)
 
-        weights = 1 / torch.sqrt(counts + 1e-4)
+        weights = counts / n_sum
         print("weights", weights)
-        self.criterion = nn.CrossEntropyLoss(weight=weights)
+        # self.criterion = nn.CrossEntropyLoss(weight=weights)
+        self.criterion = nn.CrossEntropyLoss()
 
     def lmd_divergence(
         self,
@@ -309,19 +356,39 @@ class LMDServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
 
         ce = self.criterion(y_hat, y)
         total_loss = logits_loss + ce
-        # total_loss = logits_loss
+        # total_loss = ce
 
         amax_hat = y_hat.argmax(dim=1)
-        amax_ens = ens_logits.argmax(dim=1)
         self.train_div(torch.softmax(y_hat, dim=1), torch.softmax(ens_logits, dim=1))
-        self.train_acc(amax_hat, amax_ens)
-        self.train_f1(amax_hat, amax_ens)
+        self.train_acc(amax_hat, y)
+        self.train_f1(amax_hat, y)
         self.log("train_kl_div", self.train_div, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_logits_loss", logits_loss, on_step=False, on_epoch=True)
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
         return total_loss
+
+    """
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        val_loss = self.criterion(y_hat, y)
+
+        self.val_acc(y_hat, y)
+        self.val_f1(y_hat, y)
+
+        class_f1 = self.val_f1_class(y_hat, y)
+        metrics = {f"classes/f1_class_{i}": f1 for i, f1 in enumerate(class_f1)}
+        self.log_dict(
+            metrics,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log("val_acc", self.val_acc, on_step=True, on_epoch=True)
+        self.log("val_f1", self.val_f1, on_step=True, on_epoch=True)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
+    """
 
 
 class ServerLitCifar100InterOnly(ServerLitCNNCifar100):

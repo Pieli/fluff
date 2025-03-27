@@ -16,6 +16,7 @@ from server_node import (
 )
 
 from models import (
+    ServerCifar10CEandLogits,
     ServerLitCifar100LogitsOnly,
     ServerLitCNNCifar100,
     ServerLitCifar100InterOnly,
@@ -36,7 +37,7 @@ from fluff.datasets.partitions import DirichletMap
 
 
 def generate_model_run_name() -> str:
-    return f"Fedours_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
+    return f"Combinded_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
 
 
 @timer
@@ -90,14 +91,14 @@ def run(args: Namespace):
 
         print(dataset.count_train())
         cs_model = copy.deepcopy(copy_s_model)
-        adjust_bias(cs_model, dataset.count_train())
+        # adjust_bias(cs_model, dataset.count_train())
         print(cs_model.classifier.bias)
 
         print(f"[+>] Evaluating node number: {node}")
         server = Node(
             f"server-{node}",
             exp_name,
-            ServerLitCifar100LogitsOnly(
+            ServerCifar10CEandLogits(
                 cs_model,
                 ensemble=ens,
                 distillation=args.distill,
@@ -118,4 +119,3 @@ def run(args: Namespace):
             skip_val=False,
             skip_test=False,
         )
-
