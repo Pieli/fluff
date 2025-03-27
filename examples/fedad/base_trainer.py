@@ -64,6 +64,7 @@ def training_phase(
         node_cifar10.train(
             args.epochs,
             args.dev_batches,
+            swap_val_to_test=args.use_test_loader,
             skip_val=False,
             skip_test=False,
         )

@@ -115,8 +115,7 @@ def run(args: Namespace):
         server.train(
             args.rounds,
             dev_runs=args.dev_batches,
+            swap_val_to_test=args.use_test_loader,
             skip_val=False,
             skip_test=False,
         )
-
-        break

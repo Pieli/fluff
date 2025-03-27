@@ -33,7 +33,7 @@
 
 # ---
 
-python main.py fedours -e 250 -k 5 -t 15 --distill kl --seed 420 -b 128 --base ./models/remote-001 --alpha 0.01 --lr 1e-4
+python main.py fedours -e 250 -k 5 -t 15 --distill kl --seed 420 -b 512 --base ./models/remote-003 --alpha 0.03 --lr 1e-3 --use-test-loader true
 # python main.py fedours -e 250 -k 5 -t 70 --distill kl --seed 420 -b 512 --base ./models/remote-001 --alpha 0.01 --lr 5e-4
 # python main.py fedours -e 250 -k 5 -t 10 --distill kl --seed 420 -b 64 --base ./models/remote-001 --alpha 0.01 --lr 1e-3
 
@@ -55,6 +55,8 @@ python main.py fedours -e 250 -k 5 -t 15 --distill kl --seed 420 -b 128 --base .
 
 # ---
 
+#  python main.py train -e 200 -k 5 -b 16 -t 20 --alpha 0.003 --base ./models/remote-003  --distill kl --lr 0.003 --seed 42
+# python main.py train -e 200 -k 5 -b 16 -t 20 --alpha 0.03 --base ./models/remote-03  --distill kl --lr 0.003 --seed 42
 # python main.py train -e 200 -k 5 -b 16 -t 20 --alpha 0.05 --base ./models/remote-005 --distill kl --lr 0.001 --seed 42
 # python main.py train -e 200 -k 5 -b 16 -t 20 --alpha 0.1  --base ./models/remote-01  --distill kl --lr 0.001 --seed 42
 

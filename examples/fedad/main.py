@@ -33,6 +33,8 @@ parser.add_argument("--seed", type=int, default=42)
 
 parser.add_argument("--base", type=str, default="five-resnet-alpha-0_5")
 
+parser.add_argument("--use-test-loader", type=bool, default=True)
+
 args = parser.parse_args()
 
 match (args.mode):

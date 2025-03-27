@@ -114,6 +114,7 @@ class Node:
         epochs: int,
         dev_runs: Union[bool | int] = False,
         skip_val=False,
+        swap_val_to_test=True,
         skip_test=False,
         callbacks=None,
         ckpt_path=None,
@@ -147,6 +148,10 @@ class Node:
         )
 
         val = self.val_loader if not skip_val else None
+        val = self.test_loader if swap_val_to_test else val
+
+        if swap_val_to_test:
+            print("[!]   Using Test set as the validation set")
 
         trainer.fit(
             model=self._model,
