@@ -93,11 +93,11 @@ class LitModel(pl.LightningModule):
             num_classes=num_classes,
         )
 
-        self.val_f1_class = tm.classification.F1Score(
-            task="multiclass",
-            num_classes=num_classes,
-            average=None,
-        )
+        # self.val_f1_class = tm.classification.F1Score(
+        #     task="multiclass",
+        #     num_classes=num_classes,
+        #     average=None,
+        # )
 
     def forward(self, x):
         return self.cnn(x)
@@ -122,13 +122,13 @@ class LitModel(pl.LightningModule):
         self.val_acc(y_hat, y)
         self.val_f1(y_hat, y)
 
-        class_f1 = self.val_f1_class(y_hat, y)
-        metrics = {f"classes/f1_class_{i}": f1 for i, f1 in enumerate(class_f1)}
-        self.log_dict(
-            metrics,
-            on_step=True,
-            on_epoch=True,
-        )
+        # class_f1 = self.val_f1_class(y_hat, y)
+        # metrics = {f"classes/f1_class_{i}": f1 for i, f1 in enumerate(class_f1)}
+        # self.log_dict(
+        #     metrics,
+        #     on_step=True,
+        #     on_epoch=True,
+        # )
         self.log("val_acc", self.val_acc, on_step=True, on_epoch=True)
         self.log("val_f1", self.val_f1, on_step=True, on_epoch=True)
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)

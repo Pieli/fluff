@@ -12,3 +12,5 @@ models/
 *.jpg
 
 .python-version
+
+*.png
