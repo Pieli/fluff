@@ -11,13 +11,44 @@ import sys
 sys.path.append("../..")
 
 from fluff import Node
-from fluff.datasets import CIFAR10Dataset
+from fluff.datasets import CIFAR10Dataset, MNISTDataset, FMNISTDataset
 from fluff.datasets.partitions import DirichletMap
+from fluff.models import CNNv2
 
 from typing import cast, Callable
 
 from models import LitCNN
-from resnet import ResNet_cifar
+from resnet import ResNet_cifar, ResNet_mnist
+
+
+def lam_resnet():
+    return (
+        ResNet_cifar(
+            resnet_size=20,
+            group_norm_num_groups=2,
+            freeze_bn=False,
+            freeze_bn_affine=False,
+        ).train(True),
+    )
+
+
+def lam_mnist():
+    return ResNet_mnist(
+        resnet_size=20,
+        group_norm_num_groups=2,
+        freeze_bn=True,
+        freeze_bn_affine=True,
+    ).train(True)
+
+
+def fact(set_name):
+    match set_name:
+        case "cifar10":
+            return CIFAR10Dataset, lam_resnet
+        case "mnist":
+            return MNISTDataset, lam_mnist
+        case "fmnist":
+            return FMNISTDataset, lam_mnist
 
 
 def training_phase(
@@ -29,6 +60,8 @@ def training_phase(
     # split out ./models
     name = os.path.split(name)[1]
 
+    set_cls, lam_model = fact(args.data)
+
     node_stats = {}
     nodes: list[Node] = []
     for num in range(args.nodes):
@@ -36,15 +69,10 @@ def training_phase(
             f"node-{num}",
             name,
             LitCNN(
-                ResNet_cifar(
-                    resnet_size=20,
-                    group_norm_num_groups=2,
-                    freeze_bn=False,
-                    freeze_bn_affine=False,
-                ).train(True),
+                lam_model(),
                 num_classes=10,
             ),
-            CIFAR10Dataset(
+            set_cls(
                 batch_size=16,
                 partition=DirichletMap(
                     partition_id=num,
@@ -57,10 +85,10 @@ def training_phase(
             hp=args,
         ).setup()
 
-        # start training cifar10
-        print(f"Training CIFAR10 - {node_cifar10.get_name()}")
+        # start training
+        print(f"Training  - {node_cifar10.get_name()}")
 
-        # 200 epochs for CIFAR10
+        # 200 epochs
         node_cifar10.train(
             args.epochs,
             args.dev_batches,

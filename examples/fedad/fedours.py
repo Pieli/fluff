@@ -10,8 +10,7 @@ from typing import Sequence
 import utils
 from gradcam import GradCAM
 from server_node import (
-    lam_cnn,  # noqa: F401
-    lam_resnet,
+    fact,
     ServerNode,
 )
 
@@ -29,7 +28,7 @@ sys.path.append("../..")
 
 from fluff import Node
 from fluff.utils import timer
-from fluff.datasets import CIFAR100Dataset, CIFAR10Dataset
+from fluff.datasets import CIFAR100Dataset, CIFAR10Dataset, MNISTDataset, FMNISTDataset
 from fluff.datasets.partitions import BalancedFraction
 from fluff.aggregator import FedAvg
 from fluff.datasets.partitions import DirichletMap
@@ -46,10 +45,12 @@ def run(args: Namespace):
 
     # Training
 
-    print(args)
-    ens, stats = load_models(args.base, lam_resnet)
+    data_cls, lam_model = fact(args.data)
 
-    s_model = lam_resnet()
+    print(args)
+    ens, stats = load_models(args.base, lam_model)
+
+    s_model = lam_model()
 
     for en in ens:
         en.freeze_bn = True  # type: ignore
@@ -78,7 +79,7 @@ def run(args: Namespace):
 
     for node in range(args.nodes):
 
-        dataset = CIFAR10Dataset(
+        dataset = data_cls(
             batch_size=args.batch,
             partition=DirichletMap(
                 partition_id=node,

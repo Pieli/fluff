@@ -8,11 +8,11 @@ import sys
 sys.path.append("../..")
 
 from fluff import Node
-from fluff.datasets import CIFAR10Dataset
+from fluff.datasets import CIFAR10Dataset, MNISTDataset, FMNISTDataset
 from fluff.datasets.partitions import BalancedFraction
 from fluff.models import CNN
 
-from resnet import ResNet_cifar
+from resnet import ResNet_cifar, ResNet_mnist
 
 
 class ServerNode(Node):
@@ -71,6 +71,25 @@ class ServerNode(Node):
 
 def lam_cnn():
     return CNN(num_classes=10)
+
+
+def lam_mnist():
+    return ResNet_mnist(
+        resnet_size=20,
+        group_norm_num_groups=2,
+        freeze_bn=True,
+        freeze_bn_affine=True,
+    ).train(True)
+
+
+def fact(set_name: str):
+    match set_name:
+        case "cifar10":
+            return CIFAR10Dataset, lam_resnet
+        case "mnist":
+            return MNISTDataset, lam_mnist
+        case "fmnist":
+            return FMNISTDataset, lam_mnist
 
 
 def lam_resnet():

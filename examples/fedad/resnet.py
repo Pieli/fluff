@@ -49,8 +49,7 @@ class ResNetBase(nn.Module):
                     stride=stride,
                     bias=False,
                 ),
-                norm2d(group_norm_num_groups,
-                       planes=planes * block_fn.expansion),
+                norm2d(group_norm_num_groups, planes=planes * block_fn.expansion),
             )
 
         layers = []
@@ -293,6 +292,40 @@ class Bottleneck(nn.Module):
         return out
 
 
+class ResNet_mnist(ResNet_cifar):
+    def __init__(
+        self,
+        resnet_size,
+        scaling=1,
+        save_activations=False,
+        group_norm_num_groups=None,
+        freeze_bn=False,
+        freeze_bn_affine=False,
+    ):
+        super().__init__(
+            resnet_size,
+            scaling,
+            save_activations,
+            group_norm_num_groups,
+            freeze_bn,
+            freeze_bn_affine,
+        )
+        # Overwrite first conv to accept 1 channel instead of 3
+        self.conv1 = nn.Conv2d(
+            in_channels=1,
+            out_channels=int(16 * scaling),
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            bias=False,
+        )
+        self.bn1 = norm2d(group_norm_num_groups, planes=int(16 * scaling))
+
+        # Use adaptive pooling to work with both 28x28 and 32x32
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.classifier = nn.Linear(int(64 * scaling * self.layer3[0].expansion), 10)
+
+
 if __name__ == "__main__":
     import torch
 
@@ -307,3 +340,15 @@ if __name__ == "__main__":
     x = torch.randn(1, 3, 32, 32)
     y = net(x)
     print(y.shape)
+
+    print("MNIST / FashionMNIST")
+    net = ResNet_mnist(
+        resnet_size=20,
+        group_norm_num_groups=2,
+        freeze_bn=True,
+        freeze_bn_affine=True,
+    )
+    print(net)
+    x = torch.randn(1, 1, 28, 28)  # 1-channel MNIST input
+    y = net(x)
+    print("Output shape:", y.shape)  # Should be [1, 10]

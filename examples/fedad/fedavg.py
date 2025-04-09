@@ -14,7 +14,6 @@ from fluff.utils import timer
 from fluff.aggregator import FedAvg
 from fluff.datasets import CIFAR10Dataset
 from fluff.datasets.partitions import DirichletMap
-from fluff.models import CNN
 
 
 from typing import Dict, Any
@@ -22,21 +21,7 @@ from collections.abc import Mapping
 
 
 from models import LitCNN
-from resnet import ResNet_cifar
-
-
-def lam_cnn():
-    return CNN()
-    # return CNNv2()
-
-
-def lam_resnet():
-    return ResNet_cifar(
-        resnet_size=20,
-        group_norm_num_groups=2,
-        freeze_bn=False,
-        freeze_bn_affine=False,
-    ).train(True)
+from server_node import fact
 
 
 def generate_model_run_name() -> str:
@@ -60,7 +45,7 @@ def run(args: Namespace):
     exp_name = generate_model_run_name()
 
     agg = FedAvg()
-    model_type = lam_resnet
+    data_cls, model_type = fact(args.data)
 
     print(args)
 
@@ -73,7 +58,7 @@ def run(args: Namespace):
                 num_classes=10,
                 lr=1e-3,
             ),
-            CIFAR10Dataset(
+            data_cls(
                 batch_size=args.batch,
                 partition=DirichletMap(
                     partition_id=num,
@@ -98,11 +83,12 @@ def run(args: Namespace):
             num_classes=10,
             lr=1e-3,
         ),
-        CIFAR10Dataset(
+        data_cls(
             batch_size=args.batch,
             partition=DirichletMap(
                 partition_id=0,
                 partitions_number=args.nodes,
+                alpha=args.alpha,
             ),
         ),
         num_workers=args.workers,
