@@ -6,6 +6,7 @@ import fedours
 import tinyad
 import tinyours
 
+import moon
 import fedprox
 
 import lmd
@@ -38,6 +39,8 @@ parser.add_argument("--base", type=str, default="five-resnet-alpha-0_5")
 parser.add_argument("--use-test-loader", type=bool, default=True)
 parser.add_argument("--data", type=str, default=None, required=True)
 
+parser.add_argument("--mu", type=int, default=0.01)
+
 args = parser.parse_args()
 
 match (args.mode):
@@ -49,6 +52,8 @@ match (args.mode):
         fedours.run(args)
     case "expours":
         expours.run(args)
+    case "moon":
+        moon.run(args)
     case "fedprox":
         fedprox.run(args)
     case "combined":

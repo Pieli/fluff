@@ -177,6 +177,20 @@ class ResNet_cifar(ResNetBase):
             self.activations = [activation1, activation2, activation3]
         return x
 
+    def get_last_features(self, x, detach=True):
+        func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        return func(x)
+
 
 class BasicBlock(nn.Module):
     """

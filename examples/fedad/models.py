@@ -2,10 +2,10 @@ import copy
 import torch
 import torchmetrics
 from torch import nn
+from torch.nn.functional import cosine_similarity
 
 import utils
-
-from typing import Sequence
+from typing import Sequence, Optional, OrderedDict
 
 from gradcam import GradCAM
 
@@ -61,7 +61,7 @@ class FedProxModel(LitModel):
         super().__init__(model, num_classes, lr)
 
         assert isinstance(model, nn.Module)
-        
+
         self.mu = mu
         self.lr = lr
         self.cnn = model
@@ -93,7 +93,72 @@ class FedProxModel(LitModel):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=self.lr, weight_decay=3e-4)
+        return torch.optim.SGD(self.cnn.parameters(), lr=self.lr, weight_decay=3e-4)
+
+
+class MoonModel(LitModel):
+    def __init__(
+        self,
+        model: nn.Module,
+        num_classes: int = 10,
+        lr: float = 0.01,
+        mu: float = 0.01,
+        tau: float = 0.3,
+    ):
+        super().__init__(model, num_classes, lr)
+
+        assert isinstance(model, nn.Module)
+
+        self.tau = tau
+        self.mu = mu
+        self.lr = lr
+        self.cnn = model
+        self.criterion = nn.CrossEntropyLoss()
+
+        self.global_model: nn.Module = copy.deepcopy(self.cnn)
+        self.prev_model: nn.Module = copy.deepcopy(self.cnn)
+
+    def set_global_model(self, global_state: OrderedDict):
+        self.global_model.load_state_dict(global_state)
+
+    def on_train_start(self):
+        self.prev_model = copy.deepcopy(self.cnn)
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+
+        z_curr = self.cnn.get_last_features(x, detach=False)
+        z_global = self.global_model.get_last_features(x, detach=True)
+        z_prev = self.prev_model.get_last_features(x, detach=True)
+        logits = self.cnn.classifier(z_curr)
+
+        loss_sup = self.criterion(logits, y)
+        loss_con = -torch.log(
+            torch.exp(
+                cosine_similarity(z_curr.flatten(1), z_global.flatten(1)) / self.tau
+            )
+            / (
+                torch.exp(
+                    cosine_similarity(z_prev.flatten(1), z_curr.flatten(1)) / self.tau
+                )
+                + torch.exp(
+                    cosine_similarity(z_curr.flatten(1), z_global.flatten(1)) / self.tau
+                )
+            )
+        )
+
+        loss = loss_sup + self.mu * torch.mean(loss_con)
+
+        self.train_acc(y_hat, y)
+        self.train_f1(y_hat, y)
+        self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
+        self.log("train_loss", loss, on_step=False, on_epoch=True)
+        return loss
+
+    def configure_optimizers(self):
+        return torch.optim.SGD(self.cnn.parameters(), lr=self.lr, weight_decay=3e-4)
 
 
 class ServerLitCNNCifar100(LitModel):
