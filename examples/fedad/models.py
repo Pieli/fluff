@@ -1,3 +1,4 @@
+import copy
 import torch
 import torchmetrics
 from torch import nn
@@ -47,6 +48,52 @@ class LitCNN(LitModel):
 
     def get_statistics(self) -> torch.tensor:
         return self._recorded_statistics
+
+
+class FedProxModel(LitModel):
+    def __init__(
+        self,
+        model: nn.Module,
+        num_classes: int = 10,
+        lr: float = 0.01,
+        mu: float = 0.5,
+    ):
+        super().__init__(model, num_classes, lr)
+
+        assert isinstance(model, nn.Module)
+        
+        self.mu = mu
+        self.lr = lr
+        self.cnn = model
+        self.criterion = nn.CrossEntropyLoss()
+
+        self.global_model = None
+
+    def on_train_start(self):
+        self.global_model = copy.deepcopy(self.cnn)
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+
+        proximal_term = 0.0
+        for w, w_t in zip(
+            self.cnn.parameters(),
+            self.global_model.parameters(),
+        ):
+            proximal_term += (w - w_t).norm(2)
+
+        loss = self.criterion(y_hat, y) + (self.mu / 2) * proximal_term
+
+        self.train_acc(y_hat, y)
+        self.train_f1(y_hat, y)
+        self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
+        self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
+        self.log("train_loss", loss, on_step=False, on_epoch=True)
+        return loss
+
+    def configure_optimizers(self):
+        return torch.optim.SGD(self.parameters(), lr=self.lr, weight_decay=3e-4)
 
 
 class ServerLitCNNCifar100(LitModel):

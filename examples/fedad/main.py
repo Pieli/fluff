@@ -6,6 +6,8 @@ import fedours
 import tinyad
 import tinyours
 
+import fedprox
+
 import lmd
 import expours
 import combined
@@ -47,6 +49,8 @@ match (args.mode):
         fedours.run(args)
     case "expours":
         expours.run(args)
+    case "fedprox":
+        fedprox.run(args)
     case "combined":
         combined.run(args)
     case "lmd":

@@ -16,9 +16,8 @@ from fluff.datasets.partitions import BalancedFraction
 from models import ServerLitCNNCifar100
 
 from server_node import (
-    lam_cnn,  # noqa: F401
-    lam_resnet,
     ServerNode,
+    fact,
 )
 
 from base_trainer import load_models
@@ -37,10 +36,14 @@ def run(args: Namespace):
     print("[*]", exp_name)
     print("[+]", args)
 
-    # ens, stats = load_models("./models/five-resnet-alpha-0_5", lam_resnet)
-    ens, stats = load_models(args.base, lam_resnet)
+    data_cls, lam_model = fact(args.data)
 
-    s_model = lam_resnet()
+    #  ens, stats = load_models("./models/five-resnet-alpha-0_5", lam_resnet)
+    ens, stats = load_models(args.base, lam_model)
+
+    s_model = lam_model()
+
+    print(s_model)
 
     for en in ens:
         en.freeze_bn = True  # type: ignore
@@ -56,7 +59,11 @@ def run(args: Namespace):
             ensemble=ens,
             distillation=args.distill,
         ),
-        CIFAR100Dataset(batch_size=args.batch, partition=BalancedFraction(percent=0.8)),
+        data_cls(
+            batch_size=args.batch,
+            partition=BalancedFraction(percent=0.8),
+            seed=args.seed,
+        ),
         num_workers=args.workers,
         hp=args,
     ).setup()
@@ -69,4 +76,5 @@ def run(args: Namespace):
         dev_runs=args.dev_batches,
         skip_val=False,
         skip_test=False,
+        enable_progress_bar=False,
     )

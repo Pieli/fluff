@@ -163,13 +163,11 @@ class Node:
         if not skip_test:
             trainer.test(model=self._model, dataloaders=self.test_loader)
 
-    def test(self, keep_trainer=True) -> None:
-        if not self._test_trainer:
-            self._test_trainer = pl.Trainer(
-                max_epochs=10,
-                logger=self._logger,
-                deterministic=True,
-            )
+    def test(self, epochs=10, keep_trainer=True) -> None:
+        self._test_trainer = pl.Trainer(
+            max_epochs=epochs,
+            logger=self._logger,
+        )
 
         self._test_trainer.test(model=self._model, dataloaders=self.test_loader)
 
