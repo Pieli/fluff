@@ -164,12 +164,19 @@ class Node:
             trainer.test(model=self._model, dataloaders=self.test_loader)
 
     def test(self, epochs=10, keep_trainer=True) -> None:
-        self._test_trainer = pl.Trainer(
-            max_epochs=epochs,
-            logger=self._logger,
+        if not self._test_trainer:
+            self._test_trainer = pl.Trainer(
+                max_epochs=epochs,
+                logger=self._logger,
+            )
+
+        output = self._test_trainer.test(
+            model=self._model, dataloaders=self.test_loader
         )
 
-        self._test_trainer.test(model=self._model, dataloaders=self.test_loader)
+        self._logger.experiment.add_scalar(
+            "server/test_f1", output[0]["test_f1"], global_step=epochs
+        )
 
     def get_model(self) -> pl.LightningModule:
         return self._model

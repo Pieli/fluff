@@ -136,14 +136,26 @@ class MoonModel(LitModel):
         loss_sup = self.criterion(logits, y)
         loss_con = -torch.log(
             torch.exp(
-                cosine_similarity(z_curr.flatten(1), z_global.flatten(1)) / self.tau
+                cosine_similarity(
+                    z_curr.flatten(1),
+                    z_global.flatten(1),
+                )
+                / self.tau
             )
             / (
                 torch.exp(
-                    cosine_similarity(z_prev.flatten(1), z_curr.flatten(1)) / self.tau
+                    cosine_similarity(
+                        z_prev.flatten(1),
+                        z_curr.flatten(1),
+                    )
+                    / self.tau
                 )
                 + torch.exp(
-                    cosine_similarity(z_curr.flatten(1), z_global.flatten(1)) / self.tau
+                    cosine_similarity(
+                        z_curr.flatten(1),
+                        z_global.flatten(1),
+                    )
+                    / self.tau
                 )
             )
         )
@@ -158,7 +170,7 @@ class MoonModel(LitModel):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.cnn.parameters(), lr=self.lr, weight_decay=3e-4)
+        return torch.optim.SGD(self.cnn.parameters(), lr=self.lr, weight_decay=1e-5)
 
 
 class ServerLitCNNCifar100(LitModel):

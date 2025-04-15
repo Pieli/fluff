@@ -60,8 +60,9 @@ def run(args: Namespace):
             MoonModel(
                 model_type(),
                 num_classes=10,
-                lr=1e-3,
-                mu=0.01,  # TODO make global?
+                lr=0.01,
+                mu=5,
+                tau=0.5,
             ),
             data_cls(
                 batch_size=args.batch,
@@ -86,8 +87,9 @@ def run(args: Namespace):
         MoonModel(
             model_type(),
             num_classes=10,
-            lr=1e-3,
-            mu=0.01,
+            lr=0.01,
+            mu=5,
+            tau=0.5,
         ),
         data_cls(
             batch_size=args.batch,
@@ -98,6 +100,7 @@ def run(args: Namespace):
             ),
         ),
         num_workers=args.workers,
+        hp=args,
     ).setup()
 
     callback = [ModelCheckpoint(save_last=True) for _ in range(args.nodes)]
@@ -120,7 +123,7 @@ def run(args: Namespace):
             print(f"[+] Started training node {node.get_name()} - Round {round + 1}")
 
             if round > 0:
-                node._model.cnn.load_state_dict(new_state)
+                node._model.set_global_model(copy.deepcopy(new_state))
 
             node.train(
                 epochs=args.epochs * (round + 1),
@@ -134,5 +137,5 @@ def run(args: Namespace):
             )
 
         new_state = agg.run([node.get_model().cnn for node in nodes])
-        server.get_model().set_global_model(copy.deepcopy(new_state))
+        server._model.cnn.load_state_dict(copy.deepcopy(new_state))
         server.test(epochs=(args.epochs * (round + 1)))
