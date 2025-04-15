@@ -2,21 +2,21 @@
 # MOON
 # ---
 
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 420 -b 512 --base ./models/fmnist-05/ --alpha 0.5 --lr 1e-3 --data fmnist
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 69 -b 512 --base ./models/fmnist-05/ --alpha 0.5 --lr 1e-3 --data fmnist
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./models/fmnist-05/ --alpha 0.5 --lr 1e-3 --data fmnist
-
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 420 -b 512 --base ./models/fmnist-03/ --alpha 0.3 --lr 1e-3 --data fmnist
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 69 -b 512 --base ./models/fmnist-03/ --alpha 0.3 --lr 1e-3 --data fmnist
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./models/fmnist-03/ --alpha 0.3 --lr 1e-3 --data fmnist
-
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 420 -b 512 --base ./models/fmnist-005/ --alpha 0.05 --lr 1e-3 --data fmnist
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 69 -b 512 --base ./models/fmnist-005/ --alpha 0.05 --lr 1e-3 --data fmnist
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./models/fmnist-005/ --alpha 0.05 --lr 1e-3 --data fmnist
-
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 420 -b 512 --base ./models/fmnist-003/ --alpha 0.03 --lr 1e-3 --data fmnist
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 69 -b 512 --base ./models/fmnist-003/ --alpha 0.03 --lr 1e-3 --data fmnist
-python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./models/fmnist-003/ --alpha 0.03 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 420 -b 512 --base ./models/fmnist-05/ --alpha 0.5 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 69 -b 512 --base ./models/fmnist-05/ --alpha 0.5 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./models/fmnist-05/ --alpha 0.5 --lr 1e-3 --data fmnist
+#
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 420 -b 512 --base ./models/fmnist-03/ --alpha 0.3 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 69 -b 512 --base ./models/fmnist-03/ --alpha 0.3 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./models/fmnist-03/ --alpha 0.3 --lr 1e-3 --data fmnist
+#
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 420 -b 512 --base ./models/fmnist-005/ --alpha 0.05 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 69 -b 512 --base ./models/fmnist-005/ --alpha 0.05 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./models/fmnist-005/ --alpha 0.05 --lr 1e-3 --data fmnist
+#
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 420 -b 512 --base ./models/fmnist-003/ --alpha 0.03 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 69 -b 512 --base ./models/fmnist-003/ --alpha 0.03 --lr 1e-3 --data fmnist
+# python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./models/fmnist-003/ --alpha 0.03 --lr 1e-3 --data fmnist
 
 
 
@@ -93,6 +93,22 @@ python main.py moon -e 10 -k 5 -t 20 --distill kl --seed 42 -b 512 --base ./mode
 # python main.py tinyours -e 250 -k 5 -t 30 --distill kl --seed 420 -b 512 --base ./models/remote-001/  --alpha 0.01 --lr 0.001
 
 # ---
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 420 -b 512 --base ./models/mnist-05/ --alpha 0.5 --lr 1e-3 --data mnist
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 69 -b 512 --base ./models/mnist-05/ --alpha 0.5 --lr 1e-3 --data mnist
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 42 -b 512 --base ./models/mnist-05/ --alpha 0.5 --lr 1e-3 --data mnist
+
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 420 -b 512 --base ./models/mnist-03/ --alpha 0.3 --lr 1e-3 --data mnist
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 69 -b 512 --base ./models/mnist-03/ --alpha 0.3 --lr 1e-3 --data mnist
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 42 -b 512 --base ./models/mnist-03/ --alpha 0.3 --lr 1e-3 --data mnist
+
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 420 -b 512 --base ./models/mnist-005/ --alpha 0.05 --lr 1e-3 --data mnist
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 69 -b 512 --base ./models/mnist-005/ --alpha 0.05 --lr 1e-3 --data mnist
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 42 -b 512 --base ./models/mnist-005/ --alpha 0.05 --lr 1e-3 --data mnist
+
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 420 -b 512 --base ./models/mnist-003/ --alpha 0.03 --lr 1e-3 --data mnist
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 69 -b 512 --base ./models/mnist-003/ --alpha 0.03 --lr 1e-3 --data mnist
+python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 42 -b 512 --base ./models/mnist-003/--alpha 0.03 --lr 1e-3--data mnist
+
 
 # python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 420 -b 512 --base ./models/fmnist-05/ --alpha 0.5 --lr 1e-3 --data fmnist
 # python main.py fedad -e 250 -k 5 -t 10 --distill kl --seed 69 -b 512 --base ./models/fmnist-05/ --alpha 0.5 --lr 1e-3 --data fmnist

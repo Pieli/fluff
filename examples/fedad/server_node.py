@@ -22,16 +22,20 @@ class ServerNode(Node):
         experiement_name: str,
         model: pl.LightningModule,
         dataset,
+        base_dataset,
         num_workers: int = 2,
         seed=None,
         hp=None,
     ) -> None:
         super().__init__(name, experiement_name, model, dataset, num_workers, seed, hp)
+        self.base_dataset = base_dataset
 
     def setup(self):
+        """
         cif_10 = CIFAR10Dataset(
             BalancedFraction(percent=0.9), batch_size=self._dataset.get_batch_size()
         )
+        """
 
         training_dataset = data.Subset(
             self._dataset.train_set,
@@ -40,9 +44,11 @@ class ServerNode(Node):
 
         train_set = training_dataset
         _, valid_set = data.random_split(
-            cif_10.train_set, (0.8, 0.2), generator=torch.Generator().manual_seed(42)
+            self.base_dataset.train_set,
+            (0.8, 0.2),
+            generator=torch.Generator().manual_seed(42),
         )
-        test_set = cif_10.test_set
+        test_set = self.base_dataset.test_set
 
         generator = torch.Generator().manual_seed(self._seed) if self._seed else None
         self.train_loader = data.DataLoader(

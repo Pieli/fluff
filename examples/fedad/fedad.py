@@ -10,14 +10,21 @@ import sys
 sys.path.append("../..")
 
 from fluff.utils import timer, plot_tuning
-from fluff.datasets import CIFAR100Dataset
+from fluff.datasets import (
+    CIFAR100Dataset,
+    SVHNDataset,
+    CIFAR10Dataset,
+    MNISTDataset,
+    FMNISTDataset,
+)
 from fluff.datasets.partitions import BalancedFraction
 
 from models import ServerLitCNNCifar100
 
 from server_node import (
     ServerNode,
-    fact,
+    lam_resnet,
+    lam_mnist,
 )
 
 from base_trainer import load_models
@@ -25,6 +32,17 @@ from base_trainer import load_models
 
 def generate_model_run_name() -> str:
     return f"Fedad_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
+
+
+def fedad_fact(set_name: str):
+    match set_name:
+        case "cifar10":
+            return CIFAR100Dataset, CIFAR10Dataset, lam_resnet
+        case "mnist":
+            return SVHNDataset, MNISTDataset, lam_mnist
+        case "fmnist":
+            # TODO change this here to the deep bla
+            return FMNISTDataset, FMNISTDataset, lam_mnist
 
 
 @timer
@@ -36,14 +54,12 @@ def run(args: Namespace):
     print("[*]", exp_name)
     print("[+]", args)
 
-    data_cls, lam_model = fact(args.data)
+    data_cls, base_cls, lam_model = fedad_fact(args.data)
 
     #  ens, stats = load_models("./models/five-resnet-alpha-0_5", lam_resnet)
     ens, stats = load_models(args.base, lam_model)
 
     s_model = lam_model()
-
-    print(s_model)
 
     for en in ens:
         en.freeze_bn = True  # type: ignore
@@ -59,9 +75,14 @@ def run(args: Namespace):
             ensemble=ens,
             distillation=args.distill,
         ),
-        data_cls(
+        dataset=data_cls(
             batch_size=args.batch,
             partition=BalancedFraction(percent=0.8),
+            seed=args.seed,
+        ),
+        base_dataset=base_cls(
+            BalancedFraction(percent=0.9),
+            batch_size=args.batch,
             seed=args.seed,
         ),
         num_workers=args.workers,
@@ -76,5 +97,5 @@ def run(args: Namespace):
         dev_runs=args.dev_batches,
         skip_val=False,
         skip_test=False,
-        enable_progress_bar=False,
+        enable_progress_bar=True,
     )
