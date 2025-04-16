@@ -117,7 +117,8 @@ if __name__ == "__main__":
             func = print_single_f1
         case "f1oe":
             scalar = "val_f1_epoch"
-            func = visualize_f1_over_epoch
+            # func = visualize_f1_over_epoch
+            func = print
         case _:
             print(f"No action found for {args.method}")
             exit(1)
