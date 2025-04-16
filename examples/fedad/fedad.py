@@ -41,8 +41,7 @@ def fedad_fact(set_name: str):
         case "mnist":
             return SVHNDataset, MNISTDataset, lam_mnist
         case "fmnist":
-            # TODO change this here to the deep bla
-            return FMNISTDataset, FMNISTDataset, lam_mnist
+            return CIFAR100Dataset, FMNISTDataset, lam_mnist
 
 
 @timer
