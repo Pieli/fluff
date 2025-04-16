@@ -12,6 +12,7 @@ sys.path.append("../..")
 from fluff.utils import timer, plot_tuning
 from fluff.datasets import (
     CIFAR100Dataset,
+    CIFAR100DatasetToMNIST,
     SVHNDataset,
     CIFAR10Dataset,
     MNISTDataset,
@@ -41,7 +42,7 @@ def fedad_fact(set_name: str):
         case "mnist":
             return SVHNDataset, MNISTDataset, lam_mnist
         case "fmnist":
-            return CIFAR100Dataset, FMNISTDataset, lam_mnist
+            return CIFAR100DatasetToMNIST, FMNISTDataset, lam_mnist
 
 
 @timer

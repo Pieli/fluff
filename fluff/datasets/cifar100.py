@@ -61,3 +61,37 @@ class CIFAR100Dataset(NebulaDataset):
             download=True,
             transform=apply_transforms,
         )
+
+
+class CIFAR100DatasetToMNIST(CIFAR100Dataset):
+    def __init__(
+        self,
+        partition: Partition,
+        batch_size=32,
+        num_classes=1000,
+        num_workers=4,
+        seed=42,
+    ):
+        super().__init__(
+            partition=partition,
+            num_classes=num_classes,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            seed=seed,
+        )
+
+    def load_cifar100_dataset(self, train=True):
+        apply_transforms = transforms.Compose(
+            [
+                transforms.Grayscale(num_output_channels=1),
+                transforms.Resize((28, 28)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,), (0.5,)),
+            ]
+        )
+        return CIFAR100(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"),
+            train=train,
+            download=True,
+            transform=apply_transforms,
+        )
