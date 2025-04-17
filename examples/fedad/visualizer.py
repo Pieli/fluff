@@ -83,12 +83,15 @@ def request_scalar(logdir: str, scalar: str):
     tensorboard_url = "http://localhost:5000"
     try:
         response = requests.get(
-            f"{tensorboard_url}/data/plugin/scalars/scalars?tag={scalar}&run={url_run}"
+            (url := f"{tensorboard_url}/data/plugin/scalars/scalars?tag={scalar}&run={url_run}")
         )
+        print(url)
     except requests.exceptions.ConnectionError:
         print(f"Failed to connect to {tensorboard_url}")
         print("Is the tensorboard server running?")
         raise RuntimeError
+
+    assert response.ok
 
     # Returns a list of [wall_time, step, value]
     data = response.json()
