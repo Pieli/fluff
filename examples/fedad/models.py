@@ -170,7 +170,9 @@ class MoonModel(LitModel):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.cnn.parameters(), lr=self.lr, weight_decay=1e-5)
+        return torch.optim.SGD(
+            self.cnn.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-5
+        )
 
 
 class ServerLitCNNCifar100(LitModel):
