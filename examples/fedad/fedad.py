@@ -17,6 +17,7 @@ from fluff.datasets import (
     CIFAR10Dataset,
     MNISTDataset,
     FMNISTDataset,
+    DeepFashionDataset
 )
 from fluff.datasets.partitions import BalancedFraction
 
@@ -42,7 +43,7 @@ def fedad_fact(set_name: str):
         case "mnist":
             return SVHNDataset, MNISTDataset, lam_mnist
         case "fmnist":
-            return CIFAR100DatasetToMNIST, FMNISTDataset, lam_mnist
+            return DeepFashionDataset, FMNISTDataset, lam_mnist
 
 
 @timer
