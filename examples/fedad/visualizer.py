@@ -72,6 +72,11 @@ def print_single_f1(values):
     print(f"${mean:0.2f}\\pm{stdv:0.2f}$")
 
 
+def print_server_f1(values):
+    val_dict = dict(values)
+    print(("server", val_dict["server"]))
+
+
 def request_scalar(logdir: str, scalar: str):
     print(f"processing: {logdir}")
     run = logdir
@@ -79,19 +84,26 @@ def request_scalar(logdir: str, scalar: str):
         run = run.partition("fluff_logs/")[2]
 
     url_run = urllib.parse.quote_plus(run)
+    url_scalar = urllib.parse.quote_plus(scalar)
 
     tensorboard_url = "http://localhost:5000"
     try:
         response = requests.get(
-            f"{tensorboard_url}/data/plugin/scalars/scalars?tag={scalar}&run={url_run}"
+            (url := f"{tensorboard_url}/data/plugin/scalars/scalars?tag={url_scalar}&run={url_run}")
         )
+        print(url)
     except requests.exceptions.ConnectionError:
         print(f"Failed to connect to {tensorboard_url}")
         print("Is the tensorboard server running?")
         raise RuntimeError
 
+    if not response.ok:
+        print(f"[-] Something went wrong: skiping {url}")
+        return ([], [])
+
     # Returns a list of [wall_time, step, value]
     data = response.json()
+    print(data)
     sorted_data = sorted(data, key=lambda x: x[1])
     res = list(zip(*sorted_data))
     return (res[1], res[2])
@@ -112,13 +124,17 @@ if __name__ == "__main__":
         dirs.append(dir)
 
     match args.method:
+        case "sf1":
+            scalar = "server/test_f1"
+            # func = print
+            func = print_server_f1 
         case "f1":
             scalar = "test_f1"
-            func = print_single_f1
+            # func = print_single_f1
+            func = print
         case "f1oe":
             scalar = "val_f1_epoch"
-            # func = visualize_f1_over_epoch
-            func = print
+            func = visualize_f1_over_epoch
         case _:
             print(f"No action found for {args.method}")
             exit(1)
