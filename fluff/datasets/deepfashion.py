@@ -63,7 +63,7 @@ class DeepFashionDataset(NebulaDataset):
         self,
         partition: Partition,
         batch_size=32,
-        num_classes=10,
+        num_classes=50,
         num_workers=4,
         seed=42,
     ):
@@ -86,8 +86,11 @@ class DeepFashionDataset(NebulaDataset):
         self.partition_map = self.partition.generate(self.train_set)
         self.train_indices_map = self.partition_map[self.partition.get_id()]
 
-        print(f"Len of train indices map (global): {len(self.train_set)}")
-        print(f"Len of train indices map (local)): {len(self.train_indices_map)}")
+        name = self.__class__.__name__
+        print(f"({name}) Len of train indices map (global): {len(self.train_set)}")
+        print(
+            f"({name}) Len of train indices map (local)): {len(self.train_indices_map)}"
+        )
 
     def load(self, train=True):
         apply_transforms = transforms.Compose(
