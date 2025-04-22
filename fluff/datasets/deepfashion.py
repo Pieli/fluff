@@ -19,19 +19,19 @@ Note: This is only a temporary implementation of the DeepFashion Dataset
 
 class DFDataset(Dataset):
     def __init__(self, root_directory, transform=None):
-        root_path = pathlib.Path(root_directory)
-        if not root_path.exists():
-            raise ValueError(f"{root_path} folder does not exist")
+        self.root_path = pathlib.Path(root_directory)
+        if not self.root_path.exists():
+            raise ValueError(f"{self.root_path} folder does not exist")
 
-        self.image_folder = root_path / "img"
+        self.image_folder = self.root_path / "img"
         if not self.image_folder.exists():
             raise ValueError(f"{self.image_folder} does not exist")
 
-        self.train_imgs = root_path / "train.txt"
+        self.train_imgs = self.root_path / "train.txt"
         if not self.train_imgs.exists():
             raise ValueError(f"{self.train_imgs} does not exist")
 
-        self.train_targets = root_path / "train_cate.txt"
+        self.train_targets = self.root_path / "train_cate.txt"
         if not self.train_targets.exists():
             raise ValueError(f"{self.train_targets} does not exist")
 
@@ -39,13 +39,10 @@ class DFDataset(Dataset):
         self.targets = []
         self.image_labels = []
 
-        with open(self.train_targets, 'r') as f:
-            self.targets = [
-                int(line.strip())
-                for line in f.readlines()
-            ]
+        with open(self.train_targets, "r") as f:
+            self.targets = [int(line.strip()) for line in f.readlines()]
 
-        with open(self.train_imgs, 'r') as f:
+        with open(self.train_imgs, "r") as f:
             for path_line, label in zip(f.readlines(), self.targets):
                 path = path_line.strip()
                 self.image_labels.append((path, int(label)))
@@ -55,8 +52,7 @@ class DFDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path, label = self.image_labels[idx]
-        image = Image.open(os.path.join(
-            self.image_folder, img_path)).convert("RGB")
+        image = Image.open(self.root_path / img_path).convert("RGB")
         if self.transform:
             image = self.transform(image)
         return image, label
@@ -91,8 +87,7 @@ class DeepFashionDataset(NebulaDataset):
         self.train_indices_map = self.partition_map[self.partition.get_id()]
 
         print(f"Len of train indices map (global): {len(self.train_set)}")
-        print(
-            f"Len of train indices map (local)): {len(self.train_indices_map)}")
+        print(f"Len of train indices map (local)): {len(self.train_indices_map)}")
 
     def load(self, train=True):
         apply_transforms = transforms.Compose(
@@ -110,7 +105,5 @@ class DeepFashionDataset(NebulaDataset):
         )
 
     def plot(self):
-        self.partition.plot_all_data_distribution(
-            self.train_set, self.partition_map)
-        self.partition.plot_data_distribution(
-            self.train_set, self.partition_map)
+        self.partition.plot_all_data_distribution(self.train_set, self.partition_map)
+        self.partition.plot_data_distribution(self.train_set, self.partition_map)
