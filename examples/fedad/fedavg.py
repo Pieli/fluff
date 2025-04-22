@@ -129,4 +129,4 @@ def run(args: Namespace):
 
         new_state = agg.run([node.get_model().cnn for node in nodes])
         server._model.cnn.load_state_dict(copy.deepcopy(new_state))
-        server.test()
+        server.test(epochs=(args.epochs * (round + 1)))

@@ -61,7 +61,7 @@ def run(args: Namespace):
                 model_type(),
                 num_classes=10,
                 lr=0.01,
-                mu=5,
+                mu=0.1,
                 tau=0.5,
             ),
             data_cls(
