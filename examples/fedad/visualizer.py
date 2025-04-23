@@ -15,12 +15,23 @@ parser = argparse.ArgumentParser()
 parser.add_argument("filename")
 parser.add_argument("-m", "--method", type=str, default="f1")
 parser.add_argument("-b", "--backend", type=str, default="server")
+parser.add_argument("-s", "--select", type=str, default=None)
 
 args = parser.parse_args()
 input_dir = args.filename
 
 p = Path(input_dir)
 log_dirs: list[Path] = [l_dir for l_dir in p.iterdir() if l_dir.is_dir()]
+
+
+def selective_print(select):
+    def inner(vals):
+        for val in vals:
+            if val[0] == select:
+                print(val)
+                return
+
+    return inner
 
 
 def scalar_values(logdir: str, scalar_name: str):
@@ -89,7 +100,9 @@ def request_scalar(logdir: str, scalar: str):
     tensorboard_url = "http://localhost:5000"
     try:
         response = requests.get(
-            (url := f"{tensorboard_url}/data/plugin/scalars/scalars?tag={url_scalar}&run={url_run}")
+            (
+                url := f"{tensorboard_url}/data/plugin/scalars/scalars?tag={url_scalar}&run={url_run}"
+            )
         )
         print(url)
     except requests.exceptions.ConnectionError:
@@ -103,7 +116,7 @@ def request_scalar(logdir: str, scalar: str):
 
     # Returns a list of [wall_time, step, value]
     data = response.json()
-    print(data)
+    # print(data)
     sorted_data = sorted(data, key=lambda x: x[1])
     res = list(zip(*sorted_data))
     return (res[1], res[2])
@@ -134,7 +147,11 @@ if __name__ == "__main__":
             func = print
         case "f1oe":
             scalar = "val_f1_epoch"
-            func = visualize_f1_over_epoch
+            # func = visualize_f1_over_epoch
+            if args.select:
+                func = selective_print(args.select)
+            else:
+                func = print
         case _:
             print(f"No action found for {args.method}")
             exit(1)
