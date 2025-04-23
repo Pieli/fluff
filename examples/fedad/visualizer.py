@@ -127,7 +127,7 @@ if __name__ == "__main__":
         case "sf1":
             scalar = "server/test_f1"
             # func = print
-            func = print_server_f1 
+            func = print_server_f1
         case "f1":
             scalar = "test_f1"
             # func = print_single_f1
