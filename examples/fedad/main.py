@@ -41,6 +41,8 @@ parser.add_argument("--data", type=str, default=None, required=True)
 
 parser.add_argument("--mu", type=int, default=0.01)
 
+parser.add_argument("--select", type=int, default=None)
+
 args = parser.parse_args()
 
 match (args.mode):

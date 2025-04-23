@@ -64,7 +64,9 @@ def run(args: Namespace):
 
     copy_s_model = copy.deepcopy(s_model)
 
-    for node in range(args.nodes):
+    num_nodes = range(args.nodes) if not args.select else [args.select]
+
+    for node in num_nodes:
 
         dataset = data_cls(
             batch_size=args.batch,
