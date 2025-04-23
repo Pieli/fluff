@@ -1,8 +1,43 @@
+import os
 import functools
 import time
+import torch
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+
+def generate_confusion_matrix(model, dataloader, name: str, device='cuda'):
+    model.eval()
+    model.to(device)
+
+    os.makedirs("results", exist_ok=True)
+
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for batch in dataloader:
+            inputs, labels = batch
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            outputs = model(inputs)
+            preds = torch.argmax(outputs, dim=1)
+
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    cm = confusion_matrix(all_labels, all_preds)
+    print(cm)
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm, display_labels=None)
+    disp.plot(cmap='Blues', xticks_rotation=45)
+    plt.title("Confusion Matrix")
+    plt.tight_layout()
+    plt.savefig(f"results/{name}.png",
+                bbox_inches='tight', pad_inches=0.05, dpi=100)
 
 
 def timer(func):
