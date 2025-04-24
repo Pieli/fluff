@@ -116,7 +116,7 @@ def run(args: Namespace):
         for node in nodes
     ]
 
-    new_state : Dict[str, Any] = copy.deepcopy(model_type().state_dict())
+    new_state: Dict[str, Any] = copy.deepcopy(model_type().state_dict())
     for round in range(args.rounds):
         print(f"[+] Started round number {round + 1}")
         for ind, node in enumerate(nodes):
