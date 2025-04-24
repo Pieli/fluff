@@ -118,11 +118,17 @@ class MoonModel(LitModel):
         self.global_model: nn.Module = copy.deepcopy(self.cnn)
         self.prev_model: nn.Module = copy.deepcopy(self.cnn)
 
+        self.first_time = True
+
     def set_global_model(self, global_state: OrderedDict):
         self.global_model.load_state_dict(global_state)
 
     def on_train_start(self):
         self.prev_model = copy.deepcopy(self.cnn)
+        self.cnn.load_state_dict(self.global_model.state_dict())
+        
+        if self.first_time:
+            self.prev_model = copy.deepcopy(self.cnn)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -130,39 +136,26 @@ class MoonModel(LitModel):
         z_curr = self.cnn.get_last_features(x, detach=False)
         z_global = self.global_model.get_last_features(x, detach=True)
         z_prev = self.prev_model.get_last_features(x, detach=True)
-        logits = self.cnn.classifier(z_curr)
+        out = self.cnn.classifier(z_curr)
 
-        loss_sup = self.criterion(logits, y)
-        loss_con = -torch.log(
-            torch.exp(
-                cosine_similarity(
-                    z_curr.flatten(1),
-                    z_global.flatten(1),
-                )
-                / self.tau
-            )
-            / (
-                torch.exp(
-                    cosine_similarity(
-                        z_prev.flatten(1),
-                        z_curr.flatten(1),
-                    )
-                    / self.tau
-                )
-                + torch.exp(
-                    cosine_similarity(
-                        z_curr.flatten(1),
-                        z_global.flatten(1),
-                    )
-                    / self.tau
-                )
-            )
-        )
+        posi = cosine_similarity(z_curr, z_global)
+        logits = posi.reshape(-1, 1)
 
-        loss = loss_sup + self.mu * torch.mean(loss_con)
+        # nega is the negative pair
+        nega = cosine_similarity(z_curr, z_prev)
+        logits = torch.cat((logits, nega.reshape(-1, 1)), dim=1)
 
-        self.train_acc(logits, y)
-        self.train_f1(logits, y)
+        logits /= self.tau
+        labels = torch.zeros(x.size(0)).cuda().long()
+        # compute the model-contrastive loss (Line 17 of Algorithm 1)
+        loss2 = self.mu * self.criterion(logits, labels)
+        # compute the cross-entropy loss (Line 13 of Algorithm 1)
+        loss1 = self.criterion(out, y)
+        # compute the loss (Line 18 of Algorithm 1)
+        loss = loss1 + loss2
+
+        self.train_acc(out, y)
+        self.train_f1(out, y)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_loss", loss, on_step=False, on_epoch=True)
