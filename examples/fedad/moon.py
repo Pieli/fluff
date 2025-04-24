@@ -37,9 +37,11 @@ class MyStrat(pl.pytorch.strategies.SingleDeviceStrategy):
     ) -> None:
         pass
 
+    """
     def load_optimizer_state_dict(self, checkpoint: Mapping[str, Any]) -> None:
-        print("[!] Skipping optimizer state dict load")
+         print("[!] Skipping optimizer state dict load")
         # skip entirely to avoid mismatches
+    """
 
 
 @timer
@@ -61,7 +63,7 @@ def run(args: Namespace):
                 model_type(),
                 num_classes=10,
                 lr=0.01,
-                mu=0.1,
+                mu=5,
                 tau=0.5,
             ),
             data_cls(
@@ -84,12 +86,10 @@ def run(args: Namespace):
     server = Node(
         "server",
         exp_name,
-        MoonModel(
+        LitCNN(
             model_type(),
             num_classes=10,
-            lr=0.01,
-            mu=5,
-            tau=0.5,
+            lr=1e-3,
         ),
         data_cls(
             batch_size=args.batch,
@@ -116,14 +116,13 @@ def run(args: Namespace):
         for node in nodes
     ]
 
-    new_state: Dict[str, Any] = {}
+    new_state : Dict[str, Any] = copy.deepcopy(model_type().state_dict())
     for round in range(args.rounds):
         print(f"[+] Started round number {round + 1}")
         for ind, node in enumerate(nodes):
             print(f"[+] Started training node {node.get_name()} - Round {round + 1}")
 
-            if round > 0:
-                node._model.set_global_model(copy.deepcopy(new_state))
+            node._model.global_model.load_state_dict(copy.deepcopy(new_state))
 
             node.train(
                 epochs=args.epochs * (round + 1),

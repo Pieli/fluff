@@ -126,7 +126,6 @@ class MoonModel(LitModel):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
 
         z_curr = self.cnn.get_last_features(x, detach=False)
         z_global = self.global_model.get_last_features(x, detach=True)
@@ -162,8 +161,8 @@ class MoonModel(LitModel):
 
         loss = loss_sup + self.mu * torch.mean(loss_con)
 
-        self.train_acc(y_hat, y)
-        self.train_f1(y_hat, y)
+        self.train_acc(logits, y)
+        self.train_f1(logits, y)
         self.log("train_acc", self.train_acc, on_step=True, on_epoch=True)
         self.log("train_f1", self.train_f1, on_step=True, on_epoch=True)
         self.log("train_loss", loss, on_step=False, on_epoch=True)
