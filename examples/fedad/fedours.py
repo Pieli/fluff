@@ -1,4 +1,5 @@
 import torch
+from torch.utils import data
 import lightning as pl
 from argparse import Namespace
 from datetime import datetime
@@ -14,7 +15,7 @@ import sys
 sys.path.append("../..")
 
 from fluff import Node
-from fluff.utils import timer
+from fluff.utils import timer, generate_confusion_matrix 
 from fluff.datasets import CIFAR100Dataset, CIFAR10Dataset, MNISTDataset, FMNISTDataset
 from fluff.datasets.partitions import BalancedFraction
 from fluff.aggregator import FedAvg
@@ -109,3 +110,15 @@ def run(args: Namespace):
             skip_val=False,
             skip_test=False,
         )
+
+        test_loader = data.DataLoader(
+            dataset.test_set,
+            batch_size=args.batch,
+            shuffle=False,
+            num_workers=args.workers,
+        )
+
+        generate_confusion_matrix(server.get_model().cnn, test_loader, f"fedours-{args.data}-{args.alpha}")
+
+        
+
