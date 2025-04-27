@@ -1,6 +1,6 @@
 import copy
 import lightning as pl
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, Timer, LambdaCallback
 from argparse import Namespace
 from datetime import datetime
 
@@ -10,9 +10,8 @@ import sys
 sys.path.append("../..")
 
 from fluff import Node
-from fluff.utils import timer
+from fluff.utils import timer, UtilizationMonitoring
 from fluff.aggregator import FedAvg
-from fluff.datasets import CIFAR10Dataset
 from fluff.datasets.partitions import DirichletMap
 
 
@@ -20,7 +19,7 @@ from typing import Dict, Any
 from collections.abc import Mapping
 
 
-from models import LitCNN, FedProxModel
+from models import FedProxModel
 from server_node import fact
 
 
@@ -70,7 +69,9 @@ def run(args: Namespace):
                     partitions_number=args.nodes,
                     alpha=args.alpha,
                 ),
+                seed=args.seed,
             ),
+            seed=args.seed,
             num_workers=args.workers,
             hp=args,
         ).setup()
@@ -96,11 +97,20 @@ def run(args: Namespace):
                 partitions_number=args.nodes,
                 alpha=args.alpha,
             ),
+            seed=args.seed,
         ),
         num_workers=args.workers,
     ).setup()
 
+    timer_call = (
+        Timer(duration=dict(hours=args.max_time), interval="step")
+        if args.conv
+        else LambdaCallback()
+    )
+
     callback = [ModelCheckpoint(save_last=True) for _ in range(args.nodes)]
+    device_stats_callback = [UtilizationMonitoring() for _ in range(args.nodes)]
+
     chk_point = f"./fluff_logs/{exp_name}"
     paths = [
         os.path.join(
@@ -127,12 +137,19 @@ def run(args: Namespace):
                 dev_runs=args.dev_batches,
                 skip_val=False,
                 skip_test=False,
-                callbacks=[callback[ind]],
+                callbacks=[timer_call, callback[ind], device_stats_callback[ind]],
                 ckpt_path=(paths[ind] if round > 0 else None),
                 strat=MyStrat(device="cuda:0"),
                 enable_progress_bar=False,
             )
+            if args.conv and timer_call.time_remaining() <= 0.0:
+                print("[+] time limit reached...")
+                return
 
         new_state = agg.run([node.get_model().cnn for node in nodes])
         server._model.cnn.load_state_dict(copy.deepcopy(new_state))
-        server.test(epochs=(args.epochs * (round + 1)))
+        metrics = server.test(epochs=(args.epochs * (round + 1)))
+
+        if args.conv and metrics[0]["test_f1"] > args.conv:
+            print(f"target accuracy of {args.conv} reached")
+            return

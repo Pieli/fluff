@@ -3,6 +3,7 @@ from torch.utils import data
 import lightning as pl
 from argparse import Namespace
 from datetime import datetime
+from lightning.pytorch.callbacks import Timer, LambdaCallback
 
 from server_node import fact
 
@@ -15,7 +16,12 @@ import sys
 sys.path.append("../..")
 
 from fluff import Node
-from fluff.utils import timer, generate_confusion_matrix 
+from fluff.utils import (
+    timer,
+    generate_confusion_matrix,
+    UtilizationMonitoring,
+    EarlyStoppingAtTarget,
+)
 from fluff.datasets import CIFAR100Dataset, CIFAR10Dataset, MNISTDataset, FMNISTDataset
 from fluff.datasets.partitions import BalancedFraction
 from fluff.aggregator import FedAvg
@@ -79,6 +85,18 @@ def run(args: Namespace):
             seed=args.seed,
         )
 
+        timer_call = (
+            Timer(duration=dict(hours=args.max_time), interval="step")
+            if args.conv
+            else LambdaCallback()
+        )
+        device_stats_callback = UtilizationMonitoring()
+        early_stop = (
+            EarlyStoppingAtTarget(target_metric="val_f1_epoch", target_value=args.conv)
+            if args.conv
+            else LambdaCallback()
+        )
+
         print(dataset.count_train())
         cs_model = copy.deepcopy(copy_s_model)
         adjust_bias(cs_model, dataset.count_train())
@@ -109,8 +127,19 @@ def run(args: Namespace):
             swap_val_to_test=args.use_test_loader,
             skip_val=False,
             skip_test=False,
+            callbacks=[timer_call, device_stats_callback, early_stop],
         )
 
+        if isinstance(early_stop, EarlyStoppingAtTarget):
+            if early_stop.stopped:
+                print(f"[+] target reached of {args.conv}, stopped early")
+                return
+
+        if args.conv and timer_call.time_remaining() <= 0.0:
+            print("[+] time limit reached...")
+            return
+
+        # Confusion matrix
         test_loader = data.DataLoader(
             dataset.test_set,
             batch_size=args.batch,
@@ -118,7 +147,6 @@ def run(args: Namespace):
             num_workers=args.workers,
         )
 
-        generate_confusion_matrix(server.get_model().cnn, test_loader, f"fedours-{args.data}-{args.alpha}")
-
-        
-
+        generate_confusion_matrix(
+            server.get_model().cnn, test_loader, f"fedours-{args.data}-{args.alpha}"
+        )

@@ -3,21 +3,21 @@
 import lightning as pl
 from argparse import Namespace
 from datetime import datetime
+from lightning.pytorch.callbacks import Timer, LambdaCallback
 
 
 import sys
 
 sys.path.append("../..")
 
-from fluff.utils import timer, plot_tuning
+from fluff.utils import timer, UtilizationMonitoring, EarlyStoppingAtTarget
 from fluff.datasets import (
     CIFAR100Dataset,
-    CIFAR100DatasetToMNIST,
     SVHNDataset,
     CIFAR10Dataset,
     MNISTDataset,
     FMNISTDataset,
-    DeepFashionDataset
+    DeepFashionDataset,
 )
 from fluff.datasets.partitions import BalancedFraction
 
@@ -62,6 +62,18 @@ def run(args: Namespace):
 
     s_model = lam_model()
 
+    timer_call = (
+        Timer(duration=dict(minutes=1), interval="step")
+        if args.conv
+        else LambdaCallback()
+    )
+    device_stats_callback = UtilizationMonitoring()
+    early_stop = (
+        EarlyStoppingAtTarget(target_metric="val_f1_epoch", target_value=args.conv)
+        if args.conv
+        else LambdaCallback()
+    )
+
     for en in ens:
         en.freeze_bn = True  # type: ignore
         en.freeze_bn_affine = True  # type: ignore
@@ -98,5 +110,15 @@ def run(args: Namespace):
         dev_runs=args.dev_batches,
         skip_val=False,
         skip_test=False,
+        callbacks=[timer_call, device_stats_callback, early_stop],
         enable_progress_bar=True,
     )
+
+    if isinstance(early_stop, EarlyStoppingAtTarget):
+        if early_stop.stopped:
+            print(f"[+] Target reached of f{args.conv}, stopped early")
+            return
+
+    if args.conv and timer_call.time_remaining() <= 0.0:
+        print("[+] time limit reached...")
+        return

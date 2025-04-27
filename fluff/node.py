@@ -3,7 +3,7 @@ from torch.utils import data
 import lightning as pl
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from typing import Union, Optional, Any
+from typing import Union, Optional, Any, Mapping
 
 from .datasets.dataset import NebulaDataset
 
@@ -163,7 +163,7 @@ class Node:
         if not skip_test:
             trainer.test(model=self._model, dataloaders=self.test_loader)
 
-    def test(self, epochs=10, keep_trainer=True) -> None:
+    def test(self, epochs=10, keep_trainer=True) -> list[Mapping[str, float]]:
         if not self._test_trainer:
             self._test_trainer = pl.Trainer(
                 max_epochs=epochs,
@@ -177,6 +177,8 @@ class Node:
         self._logger.experiment.add_scalar(
             "server/test_f1", output[0]["test_f1"], global_step=epochs
         )
+
+        return output
 
     def get_model(self) -> pl.LightningModule:
         return self._model

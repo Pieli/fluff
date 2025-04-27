@@ -15,6 +15,29 @@ import pynvml
 import psutil
 
 
+class EarlyStoppingAtTarget(pl.Callback):
+    def __init__(self, target_metric: str, target_value: float, mode: str = "max"):
+        self.target_metric = target_metric
+        self.target_value = target_value
+        self.mode = mode
+        self.stopped = False
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        """
+        Checks if the target metric has reached the target value at the end of each validation.
+        """
+        if self.stopped:
+            return  # Training already stopped, no need to check further
+
+        # Get the current value of the target metric
+        cur_metric_val = trainer.callback_metrics.get(self.target_metric, None)
+
+        if cur_metric_val is not None:
+            if self.mode == "max" and cur_metric_val >= self.target_value:
+                trainer.should_stop = True
+                self.stopped = True
+
+
 class UtilizationMonitoring(pl.Callback):
     def __init__(self, gpu_index=0):
         pynvml.nvmlInit()
@@ -30,22 +53,22 @@ class UtilizationMonitoring(pl.Callback):
 
         # GPU usage
         power = pynvml.nvmlDeviceGetPowerUsage(self.handle) / 1000.00
-        pl_module.log('resources/gpu_utilization', util.gpu, **kwargs)
-        pl_module.log('resources/gpu_memory_used', gpu_mem.used, **kwargs)
-        pl_module.log('resources/gpu_memory_percentage', gpu_mem_percent, **kwargs)
-        pl_module.log('resources/gpu_power', power, **kwargs)
-        
+        pl_module.log("resources/gpu_utilization", util.gpu, **kwargs)
+        pl_module.log("resources/gpu_memory_used", gpu_mem.used, **kwargs)
+        pl_module.log("resources/gpu_memory_percentage", gpu_mem_percent, **kwargs)
+        pl_module.log("resources/gpu_power", power, **kwargs)
+
         # CPU Usage
         cpu_percent = psutil.cpu_percent(interval=0.1)
-        pl_module.log('resources/cpu_percent', cpu_percent, **kwargs)
+        pl_module.log("resources/cpu_percent", cpu_percent, **kwargs)
 
         # RAM Usage
         ram = psutil.virtual_memory()
         ram_percent = ram.percent  # In percentage
-        pl_module.log('resources/ram_percent', ram_percent, **kwargs)
+        pl_module.log("resources/ram_percent", ram_percent, **kwargs)
 
 
-def generate_confusion_matrix(model, dataloader, name: str, device='cuda'):
+def generate_confusion_matrix(model, dataloader, name: str, device="cuda"):
     model.eval()
     model.to(device)
 
@@ -67,13 +90,11 @@ def generate_confusion_matrix(model, dataloader, name: str, device='cuda'):
 
     cm = confusion_matrix(all_labels, all_preds)
     print(cm)
-    disp = ConfusionMatrixDisplay(
-        confusion_matrix=cm, display_labels=None)
-    disp.plot(cmap='Blues', xticks_rotation=45)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=None)
+    disp.plot(cmap="Blues", xticks_rotation=45)
     plt.title("Confusion Matrix")
     plt.tight_layout()
-    plt.savefig(f"results/{name}.png",
-                bbox_inches='tight', pad_inches=0.05, dpi=100)
+    plt.savefig(f"results/{name}.png", bbox_inches="tight", pad_inches=0.05, dpi=100)
 
 
 def timer(func):
