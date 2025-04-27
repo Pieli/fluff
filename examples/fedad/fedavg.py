@@ -135,7 +135,7 @@ def run(args: Namespace):
                 callbacks=[timer_call, callback[ind], device_stats_callback[ind]],
                 ckpt_path=(paths[ind] if round > 0 else None),
                 strat=MyStrat(device="cuda:0"),
-                enable_progress_bar=False,
+                enable_progress_bar=True,
             )
 
             if args.conv and timer_call.time_remaining() <= 0.0:
