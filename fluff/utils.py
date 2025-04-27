@@ -6,7 +6,43 @@ import torch
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+import lightning as pl
+
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+
+import pynvml
+import psutil
+
+
+class UtilizationMonitoring(pl.Callback):
+    def __init__(self, gpu_index=0):
+        pynvml.nvmlInit()
+        self.handle = pynvml.nvmlDeviceGetHandleByIndex(gpu_index)
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        util = pynvml.nvmlDeviceGetUtilizationRates(self.handle)
+
+        gpu_mem = pynvml.nvmlDeviceGetMemoryInfo(self.handle)
+        gpu_mem_percent = round(gpu_mem.used / gpu_mem.total * 100, 3)
+
+        kwargs = {"prog_bar": False, "on_step": True, "on_epoch": False}
+
+        # GPU usage
+        power = pynvml.nvmlDeviceGetPowerUsage(self.handle) / 1000.00
+        pl_module.log('resources/gpu_utilization', util.gpu, **kwargs)
+        pl_module.log('resources/gpu_memory_used', gpu_mem.used, **kwargs)
+        pl_module.log('resources/gpu_memory_percentage', gpu_mem_percent, **kwargs)
+        pl_module.log('resources/gpu_power', power, **kwargs)
+        
+        # CPU Usage
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        pl_module.log('resources/cpu_percent', cpu_percent, **kwargs)
+
+        # RAM Usage
+        ram = psutil.virtual_memory()
+        ram_percent = ram.percent  # In percentage
+        pl_module.log('resources/ram_percent', ram_percent, **kwargs)
 
 
 def generate_confusion_matrix(model, dataloader, name: str, device='cuda'):
