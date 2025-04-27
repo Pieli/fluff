@@ -73,6 +73,7 @@ def run(args: Namespace):
                     partitions_number=args.nodes,
                     alpha=args.alpha,
                 ),
+                seed=args.seed
             ),
             num_workers=args.workers,
             hp=args,
