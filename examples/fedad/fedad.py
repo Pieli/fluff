@@ -63,7 +63,7 @@ def run(args: Namespace):
     s_model = lam_model()
 
     timer_call = (
-        Timer(duration=dict(minutes=1), interval="step")
+        Timer(duration=dict(minutes=args.max_time), interval="step")
         if args.conv
         else LambdaCallback()
     )

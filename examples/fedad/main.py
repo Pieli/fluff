@@ -44,7 +44,7 @@ parser.add_argument("--mu", type=int, default=0.01)
 parser.add_argument("--select", type=int, default=None)
 
 parser.add_argument("--conv", type=float, default=None)
-parser.add_argument("--max-time", type=int, default=2)
+parser.add_argument("--max-time", type=int, default=120)
 
 
 args = parser.parse_args()

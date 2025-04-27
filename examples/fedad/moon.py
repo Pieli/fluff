@@ -106,7 +106,7 @@ def run(args: Namespace):
     ).setup()
 
     timer_call = (
-        Timer(duration=dict(hours=args.max_time), interval="step")
+        Timer(duration=dict(minutes=args.max_time), interval="step")
         if args.conv
         else LambdaCallback()
     )
