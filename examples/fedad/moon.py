@@ -110,6 +110,7 @@ def run(args: Namespace):
         if args.conv
         else LambdaCallback()
     )
+    print(type(timer_call))
 
     callback = [ModelCheckpoint(save_last=True) for _ in range(args.nodes)]
     device_stats_callback = [UtilizationMonitoring() for _ in range(args.nodes)]

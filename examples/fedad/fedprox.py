@@ -100,6 +100,7 @@ def run(args: Namespace):
             seed=args.seed,
         ),
         num_workers=args.workers,
+        hp=args,
     ).setup()
 
     timer_call = (
@@ -142,9 +143,11 @@ def run(args: Namespace):
                 strat=MyStrat(device="cuda:0"),
                 enable_progress_bar=True,
             )
-            if args.conv and timer_call.time_remaining() <= 0.0:
-                print("[+] time limit reached...")
-                return
+            if args.conv:
+                print(timer_call.time_remaining())
+                if timer_call.time_remaining() <= 0.0:
+                    print("[+] time limit reached...")
+                    return
 
         new_state = agg.run([node.get_model().cnn for node in nodes])
         server._model.cnn.load_state_dict(copy.deepcopy(new_state))

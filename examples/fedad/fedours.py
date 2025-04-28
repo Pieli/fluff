@@ -71,7 +71,7 @@ def run(args: Namespace):
 
     copy_s_model = copy.deepcopy(s_model)
 
-    num_nodes = range(args.nodes) if not args.select else [args.select]
+    num_nodes = range(args.nodes) if args.select is None else [args.select]
 
     for node in num_nodes:
 

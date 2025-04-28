@@ -95,6 +95,7 @@ def run(args: Namespace):
             seed=args.seed,
         ),
         num_workers=args.workers,
+        hp=args,
     ).setup()
 
     timer_call = (
