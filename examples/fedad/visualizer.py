@@ -88,6 +88,23 @@ def print_server_f1(values):
     print(("server", val_dict["server"]))
 
 
+def avg_server(values):
+    val_dict = dict(values)
+
+    keys = list(val_dict.keys())
+
+    if len(keys) == 1:
+        key = keys[0]
+        print(("server", round(sum(inner := val_dict[key][1]) / len(inner), 4)))
+        return
+
+    print(keys)
+    avgs = sum(
+        sum(val[1]) / len(val[1]) for val in val_dict.values() if len(val[1]) != 0
+    ) / len(keys)
+    print(("global", round(avgs, 4)))
+
+
 def request_scalar(logdir: str, scalar: str):
     print(f"processing: {logdir}")
     run = logdir
@@ -137,6 +154,11 @@ if __name__ == "__main__":
         dirs.append(dir)
 
     match args.method:
+        case "scost":
+            scalar = "resources/gpu_power"
+            # func = print
+            func = print_server_f1
+
         case "sf1":
             scalar = "server/test_f1"
             # func = print
@@ -153,8 +175,19 @@ if __name__ == "__main__":
             else:
                 func = print
         case _:
-            print(f"No action found for {args.method}")
-            exit(1)
+            if not args.method in [
+                "resources/cpu_percent",
+                "resources/gpu_memory_percentage",
+                "resources/gpu_memory_used",
+                "resources/gpu_power",
+                "resources/gpu_utilization",
+                "resources/ram_percent",
+            ]:
+                print(f"No action found for {args.method}")
+                exit(1)
+
+            scalar = args.method
+            func = avg_server
 
     def local_f1(logdir: Path):
         return (str(logdir.parent.name), scalar_values(str(logdir), scalar))
