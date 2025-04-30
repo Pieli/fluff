@@ -126,7 +126,7 @@ class MoonModel(LitModel):
     def on_train_start(self):
         self.prev_model = copy.deepcopy(self.cnn)
         self.cnn.load_state_dict(self.global_model.state_dict())
-        
+
         if self.first_time:
             self.prev_model = copy.deepcopy(self.cnn)
 
@@ -356,6 +356,40 @@ class ServerLitCifar100LogitsOnly(ServerLitCNNCifar100):
         self.log("train_total_loss", total_loss, on_step=True, on_epoch=True)
 
         return total_loss
+
+
+class EnsembleModule(ServerLitCNNCifar100):
+    def __init__(
+        self,
+        model: nn.Module,
+        ensemble: list[nn.Module],
+        distillation: str,
+        lr: float = 1e-3,
+    ):
+        super().__init__(model, ensemble, distillation, lr)
+        del self.ensemble_cams
+        del self.server_cam
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+
+        with torch.no_grad():
+            batch_logits = [ens.forward(x) for ens in self.ensemble]
+
+        y_hat = utils.alternative_avg(
+            raw_logits=batch_logits,
+            raw_statistics=self._count_stats,
+            num_classes=10,
+            num_nodes=len(self.ensemble),
+        )
+
+        test_loss = self.criterion(y_hat, y)
+
+        self.test_acc(y_hat, y)
+        self.test_f1(y_hat, y)
+        self.log("test_acc", self.test_acc, on_step=False, on_epoch=True)
+        self.log("test_f1", self.test_f1, on_step=False, on_epoch=True)
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
 
 class ServerCifar10CEandLogits(ServerLitCNNCifar100):

@@ -12,6 +12,7 @@ import fedprox
 import lmd
 import expours
 import combined
+import ensemble
 
 import base_trainer
 
@@ -68,6 +69,8 @@ match (args.mode):
         lmd.run(args)
     case "tinyad":
         tinyad.run(args)
+    case "ensemble":
+        ensemble.run(args)
     case "tinyours":
         tinyours.run(args)
     case "train":
