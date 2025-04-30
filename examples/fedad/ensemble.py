@@ -26,6 +26,7 @@ from fluff.datasets import CIFAR100Dataset, CIFAR10Dataset, MNISTDataset, FMNIST
 from fluff.datasets.partitions import BalancedFraction
 from fluff.aggregator import FedAvg
 from fluff.datasets.partitions import DirichletMap
+from fluff.models import LitModel
 
 
 def generate_model_run_name() -> str:
@@ -107,3 +108,18 @@ def run(args: Namespace):
     server.get_model().set_count_statistics(stats)
 
     server.test()
+
+    # avg_model = Node(
+    #     f"server-{node}",
+    #     exp_name,
+    #     LitModel(
+    #         model=cs_model,
+    #         lr=args.lr,
+    #     ),
+    #     dataset,
+    #     num_workers=args.workers,
+    #     seed=args.seed,
+    #     hp=args,
+    # ).setup()
+
+    # avg_model.test()

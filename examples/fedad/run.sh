@@ -13,10 +13,20 @@
 #  python main.py fedours -e 250 -k 5 -t 70 --distill kl --seed 12 -b 512 --base ./models/fmnist-005 --alpha 0.05 --lr 1e-5 --data fmnist --select 1
 
 
+python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/fmnist-05 --alpha 0.5 --lr 1e-5 --data fmnist --select 1
+python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/fmnist-03 --alpha 0.3 --lr 1e-5 --data fmnist --select 1
+python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/fmnist-005 --alpha 0.05 --lr 1e-5 --data fmnist --select 1
+python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/fmnist-003 --alpha 0.03 --lr 1e-5 --data fmnist --select 1
+
+python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/mnist-05 --alpha 0.5 --lr 1e-5 --data mnist --select 1
+python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/mnist-03 --alpha 0.3 --lr 1e-5 --data mnist --select 1
+python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/mnist-005 --alpha 0.05 --lr 1e-5 --data mnist --select 1
+python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/mnist-003 --alpha 0.03 --lr 1e-5 --data mnist --select 1
+
 # python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/five-resnet-alpha-0_5/ --alpha 0.5 --lr 1e-5 --data cifar10 --select 1
-#python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/remote-03                 --alpha 0.3 --lr 1e-5 --data cifar10 --select 1
-# python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/remote-005 --alpha 0.05 --lr 1e-5 --data cifar10 --select 1
-python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/remote-003/ --alpha 0.03 --lr 1e-5 --data cifar10 --select 1
+# python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/remote-03              --alpha 0.3 --lr 1e-5 --data cifar10 --select 1
+# python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/remote-005             --alpha 0.05 --lr 1e-5 --data cifar10 --select 1
+# python main.py ensemble -e 250 -k 5 -t 70 --distill kl --seed 412 -b 512 --base ./models/remote-003/            --alpha 0.03 --lr 1e-5 --data cifar10 --select 1
 
 #
 # python main.py fedours -e 250 -k 5 -t 1000000 --distill kl --seed 420 -b 512 --base ./models/remote-005 --alpha 0.05 --lr 1e-3 --data cifar10 --conv 0.6 --max-time 84 --select 3
